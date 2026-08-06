@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "configs": [
+    {
+      "path": "config_examples/config_hedge_r55_dryrun_ui.template.json",
+      "type": "template",
+      "mode": "paper",
+      "external_writes": "NONE",
+      "requires_secret_generation": true
+    }
+  ],
+  "strategies": [
+    "config_examples/strategies/HedgeAdaptiveRegimeStrategy.py",
+    "config_examples/strategies/HedgeDualEmaExample.py"
+  ]
+}

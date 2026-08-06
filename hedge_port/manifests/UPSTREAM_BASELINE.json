@@ -1,0 +1,7 @@
+{
+  "schema_version": "hedge-upstream-baseline-v1",
+  "version": "Freqtrade 2026.8-dev",
+  "source_input_zip_sha256": "8c6bf312f5f7dee68e03528142ba74c99a690c62cfb0264b9dc0fb398e9aec4d",
+  "pyproject_sha256": "14d088a5e1aa56859cc38d8b1af86e26e3f3df418037ccb48a8b4d18c64227e8",
+  "git_metadata": false
+}

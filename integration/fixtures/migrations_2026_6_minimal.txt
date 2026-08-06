@@ -1,0 +1,9 @@
+from sqlalchemy import inspect
+
+
+def check_migrate(engine, decl_base, previous_tables):
+    """Checks if migration is necessary and migrates if necessary."""
+    inspector = inspect(engine)
+    migrating = False
+    if migrating:
+        print(inspector)

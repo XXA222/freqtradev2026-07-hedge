@@ -1,0 +1,1 @@
+R5.1.2 separates successful mainnet read-only observation from ORDER_TEST promotion readiness. Existing managed BTCUSDT/ETHUSDT positions and orders are inventoried without exchange writes. ORDER_TEST remains blocked until the account is flat and active orders are zero. Native stderr is fully captured and CLI failures are written as structured JSON.

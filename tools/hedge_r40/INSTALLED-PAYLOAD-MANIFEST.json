@@ -1,0 +1,172 @@
+{
+  "delivery_id": "20260803-2226-B47E",
+  "files": [
+    {
+      "path": "README-R4.txt",
+      "sha256": "4ba97d0e5a206605f8a026b00b6db68fa0d23b87126cbc6f8f6238d1542b9b6a",
+      "size": 373
+    },
+    {
+      "path": "config_examples/config_hedge_r4_full.example.json",
+      "sha256": "a43bc6c57745185a87b800ccf11a2068e3ca06b9b773bd4b5af04cd88d85e199",
+      "size": 616
+    },
+    {
+      "path": "docs/hedge-r4-full-completion.md",
+      "sha256": "2a1b4dc8164697defd0983de409da997b5b033b3740d5f990f72de6fc87acfdb",
+      "size": 1263
+    },
+    {
+      "path": "freqtrade/hedge/r4/__init__.py",
+      "sha256": "06e39e1cf2d4d7da63a7402c336eb7e06461d5e1003045aec9fe4f3b1ad37c8f",
+      "size": 1540
+    },
+    {
+      "path": "freqtrade/hedge/r4/__main__.py",
+      "sha256": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+      "size": 48
+    },
+    {
+      "path": "freqtrade/hedge/r4/cli.py",
+      "sha256": "92c5525e650c15f8886a6c24098491254379656a7e67b8599eef1cdfdfd1552c",
+      "size": 1178
+    },
+    {
+      "path": "freqtrade/hedge/r4/composition.py",
+      "sha256": "2e4cbc29495af0622689400a8024a878916aa7fa5520b7ca668461a2a93d0380",
+      "size": 2299
+    },
+    {
+      "path": "freqtrade/hedge/r4/config.py",
+      "sha256": "4529c1376e0c852d0021f5fc8e3c383c47bbc93fe89f081d0be3e91a915ae415",
+      "size": 4425
+    },
+    {
+      "path": "freqtrade/hedge/r4/diagnostics.py",
+      "sha256": "adf351d2b3f308791b13e40d82857e05aacc46c5841fb6dfd9f1691ddaff73fa",
+      "size": 4061
+    },
+    {
+      "path": "freqtrade/hedge/r4/lifecycle.py",
+      "sha256": "228df3683c8042611b750b5b23e6791cc34eddd7fbaca88cb593b25a763ce796",
+      "size": 3419
+    },
+    {
+      "path": "freqtrade/hedge/r4/models.py",
+      "sha256": "23d66071145a5b4e7d3433383bfdc769c4ce778efbe21356b3be53eab7e2939f",
+      "size": 3442
+    },
+    {
+      "path": "freqtrade/hedge/r4/observability.py",
+      "sha256": "3ea944bc1c3618369cd2b92ffa913e971238d5e14718ca532a7f897f7310a9f1",
+      "size": 2626
+    },
+    {
+      "path": "freqtrade/hedge/r4/parity.py",
+      "sha256": "cd10ccfcd0568a6b61beb5655bcb26425a047f97b3cb1a06292cdd90bf26811a",
+      "size": 1654
+    },
+    {
+      "path": "freqtrade/hedge/r4/planner.py",
+      "sha256": "7b0add7274cc37271cf9a47100549588a47b4cddda9911b6fc1c4dcdaad66159",
+      "size": 5521
+    },
+    {
+      "path": "freqtrade/hedge/r4/readiness.py",
+      "sha256": "54f5ee1451649cf4e50ff6325c1053c23b81409afabef75fe5c1a8f28985dc78",
+      "size": 1534
+    },
+    {
+      "path": "freqtrade/hedge/r4/runtime.py",
+      "sha256": "26f8633fb8b9bb071062689827a2169beba232b1fe403e22ae90238b63a9c43e",
+      "size": 6082
+    },
+    {
+      "path": "freqtrade/hedge/r4/simulation.py",
+      "sha256": "6cd0cff3285eff5d183b7838c70f073adda750dde8a156de5441cf293b291082",
+      "size": 3169
+    },
+    {
+      "path": "freqtrade/hedge/r4/status.py",
+      "sha256": "86fb5a854bb4f78070f3ecd9c4ba736e1afedf41c7ab7715f6a0a019287ba593",
+      "size": 1417
+    },
+    {
+      "path": "freqtrade/hedge/r4/testnet_matrix.py",
+      "sha256": "bf963d216c4899cdd827394c90abc7dc3f0663ccab04162c22db74c3f64be339",
+      "size": 4463
+    },
+    {
+      "path": "scripts/Restore-Freqtrade-Hedge-R4-Backup.ps1",
+      "sha256": "b2b7bdd76f4f4f3d3734151750b41d8a99e117126419733e7acc1e765940940d",
+      "size": 1779
+    },
+    {
+      "path": "scripts/Run-Freqtrade-Hedge-R4-AggregateDiagnostics.ps1",
+      "sha256": "0e184d71bfe918b0885e15bc11dba2ed1fac8ad4561bd2d3f86fea946a75e777",
+      "size": 1795
+    },
+    {
+      "path": "scripts/Validate-Freqtrade-Hedge-R4-Config.ps1",
+      "sha256": "a7bb8b9ccc2d845ad4b6f5596f0de348d572ad4302962200c65ab0d36e579fec",
+      "size": 967
+    },
+    {
+      "path": "tools/hedge_r40/VERSION",
+      "sha256": "e1d49c569ae09b2ede16e2d83820a3809b35eb6c44c13ba9b5330598d6b8f43c",
+      "size": 6
+    },
+    {
+      "path": "tools/hedge_r40/r40_toolkit/__init__.py",
+      "sha256": "4906ba0a2d7b0ce4661978bfc24396f693e55288c5faab631fa355d5639386c5",
+      "size": 22
+    },
+    {
+      "path": "tools/hedge_r40/r40_toolkit/__main__.py",
+      "sha256": "2a0ef36c38d9f16b01ab69124ccc7916ad47c40c3d315f0c23dd92ad68204349",
+      "size": 611
+    },
+    {
+      "path": "tools/hedge_r40/r40_toolkit/acceptance.py",
+      "sha256": "4c260cc32de0372a0b9b6770b727edf17af2485686f0e9428fcc843c088ce999",
+      "size": 10967
+    },
+    {
+      "path": "tools/hedge_r40/r40_toolkit/full_diagnostics.py",
+      "sha256": "1bfe9f8cf93ad7abdecf88cf71dbdb037143e3c27d822b9ddf211e815b10ba4e",
+      "size": 5290
+    },
+    {
+      "path": "tools/hedge_r40/tests/test_r40_acceptance.py",
+      "sha256": "604da46629745203d2f7d981cf2f88aaab7c487485122680574acfd0308e6c37",
+      "size": 797
+    },
+    {
+      "path": "tools/hedge_r40/tests/test_r40_config_readiness.py",
+      "sha256": "2b914ca270f6eea2be60958132736e3c5758b4fd2a2f235a259799c5b113e389",
+      "size": 2003
+    },
+    {
+      "path": "tools/hedge_r40/tests/test_r40_lifecycle_observability.py",
+      "sha256": "75505e79417bc2a600015da45c30dd64764ab0ffe661fe7b34268766de7c79b7",
+      "size": 2386
+    },
+    {
+      "path": "tools/hedge_r40/tests/test_r40_matrix_parity_status.py",
+      "sha256": "149219da6361e36a5866eca9dbefc094b272e7ddeb0ac8bd446ce0f3eaaa646b",
+      "size": 2537
+    },
+    {
+      "path": "tools/hedge_r40/tests/test_r40_planner_runtime.py",
+      "sha256": "855319ef48535b232ae2af4463c9e867e320c1b862d123d504d21792c1d7be47",
+      "size": 3597
+    },
+    {
+      "path": "tools/hedge_r40/tests/test_r40_simulation_diagnostics.py",
+      "sha256": "99a1e95a18d1e13bfbff60f8cbf9406e4824477a72c825baa4251a3b37b6bd84",
+      "size": 2018
+    }
+  ],
+  "release": "R4.0.0",
+  "schema_version": 1
+}

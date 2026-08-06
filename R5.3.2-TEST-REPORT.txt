@@ -1,0 +1,11 @@
+R5.3.2 Resource Closure test scope
+
+- Explicit close-count test for initialize/reserve/observe/snapshot connections.
+- Direct SQLite file removal test after two shared-budget instances operate.
+- R5.3.2 offline acceptance with Windows-sensitive unlink verification.
+- R5.3.1 tests and offline acceptance.
+- Full R5.3 diagnostics including all 13 nested sections.
+
+Exchange access: NONE
+Real mainnet order requests: 0
+Mainnet writes: LOCKED

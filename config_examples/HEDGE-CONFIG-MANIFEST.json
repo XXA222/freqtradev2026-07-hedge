@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "authority": "R5.3",
+  "types": {
+    "full_freqtrade_config": "A complete Freqtrade configuration document",
+    "stage_overlay": "A partial overlay that must not be loaded as a complete config",
+    "deployment_manifest": "Operational evidence and path declarations, not strategy config"
+  },
+  "deprecated": [],
+  "production_execution_exchange": "binance",
+  "mainnet_live_write_default": false
+}

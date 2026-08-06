@@ -1,0 +1,31 @@
+Freqtrade-Hedge R5.4.0 Operational Evidence and Promotion
+Test report generated: 2026-08-05
+
+R5.4 targeted tests
+- 24 passed
+
+R5.4 offline acceptance
+- 20/20 PASS
+- offline_only=true
+- exchange_access=NONE
+- real_order_requests=0
+- final synthetic cumulative promotion=READY
+
+Compatibility targeted tests
+- R5.3.2/R5.3.1/R5.3 targeted tests: 19 passed
+- R5.3.2 offline acceptance: 9/9 PASS
+- R5.3.1 offline acceptance: 16/16 PASS
+- R5.3 offline acceptance: 106/106 PASS
+
+Safety
+- Mainnet writes remain LOCKED.
+- No exchange credentials were read.
+- No Binance request was sent.
+- No real order request was sent.
+
+External evidence not claimed by this report
+- Real 24-hour observation
+- Real 72-hour observation and funding period
+- Real PostgreSQL service matrix
+- Real Testnet order lifecycle
+- Real Mainnet promotion stages

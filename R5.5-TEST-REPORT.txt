@@ -1,0 +1,10 @@
+R5.5.0 BUILD-TIME TEST REPORT
+
+compileall / AST: PASS
+pure R5.5 tests: 12 passed
+R5.5 offline acceptance: 4/4 PASS
+R5.5 source audit: 9/9 PASS
+full Freqtrade dependency environment: deferred to Windows Continue-All installer
+exchange access: NONE
+real order requests: 0
+mainnet writes: LOCKED

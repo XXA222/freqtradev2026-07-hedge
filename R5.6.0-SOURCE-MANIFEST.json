@@ -1,0 +1,502 @@
+{
+  "base_release": "R5.5.2-DryRunUIStrategyCompatibilityCompletion",
+  "created_at": "2026-08-05T16:44:11.753328+00:00",
+  "file_count": 70,
+  "files": [
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "R5.6.0-20-ROUND-DEVELOPMENT-REPORT.md",
+      "sha256": "87d252cacb9b30853f8902864913890c30c6779f4ffdac742d6eb7072b9bfaec",
+      "size_bytes": 5769
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "R5.6.0-RELEASE-NOTES.md",
+      "sha256": "f9e285ffe49ea9cb9756f822ee120077ca92985839c40187c11e4584ffe4ba69",
+      "size_bytes": 993
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "R5.6.0-TEST-REPORT.txt",
+      "sha256": "0d5ec6af0ab3121cafd934d892bddad18a4b2c08a00d9bb4a3cdb4114a1ff147",
+      "size_bytes": 1385
+    },
+    {
+      "baseline_sha256": "b9e5857814c4f4e3ab9099b47af1c1905609b4b7e49591f7301dda4b44d2ee39",
+      "operation": "MODIFY",
+      "relative_path": "config_examples/config_hedge_r55_dryrun_ui.template.json",
+      "sha256": "f0d9ac6b15931dc9794a26b69a01637ce2c0b1045f320425d3d3f49c8e214558",
+      "size_bytes": 2979
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "docs/hedge-r5.6-dryrun-productionization.md",
+      "sha256": "802e2567d4b56575edbbe51d55621a78868e2d47fb8c36c7f55db964ba1268cd",
+      "size_bytes": 1099
+    },
+    {
+      "baseline_sha256": "ae83a0cd5cec9cf95ec746a23d274e0fcf26f87ef9cf1d57f21537f16ce2d513",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/hedge/config.py",
+      "sha256": "d177c61b1e1d77faf270817874d9c3da1fc187b4caffc5bcc49083c5091ea0fa",
+      "size_bytes": 17352
+    },
+    {
+      "baseline_sha256": "c6def3db91069bd72caa663147aebf826a2b7ded9ffdecd5000f9f8398f3033d",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/hedge/integration/paper_runtime.py",
+      "sha256": "58923e7e5db66537c0e1055770b6796f619ef4d8dc2e075e9cd409c09cb33177",
+      "size_bytes": 87877
+    },
+    {
+      "baseline_sha256": "04fa683c8ea24c910ab8247ab96c75264696aa4cc53ebd05973417cef196a540",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/hedge/r55/cli.py",
+      "sha256": "723af7d850e08d47b495a864c8a13847479737471df382fe2cb947975dfd2d3d",
+      "size_bytes": 5406
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/__init__.py",
+      "sha256": "a0df7dcdf7b6cfc2522aca2c32bcadad1667b27b54ee9de95320ebe384ab010f",
+      "size_bytes": 246
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/__main__.py",
+      "sha256": "79ee6f134c5c5193377cf9b189cbdcc3e2095e49ba9cec310114441c15a917c4",
+      "size_bytes": 47
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/admission.py",
+      "sha256": "cdf227993ef5123af23c97bc4d2e211098048f743f0a47ed86ba796198b8c2a3",
+      "size_bytes": 1881
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/alerts.py",
+      "sha256": "5180fb97970b4defd52898a17c8c43168ff4cf84b31b37eb3e3357707110eb8c",
+      "size_bytes": 1841
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/allocation.py",
+      "sha256": "9caa81403127438e473be7b3fec2179dfd9075ed4744e1ec7fa1c358e6632598",
+      "size_bytes": 1672
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/attribution.py",
+      "sha256": "459db9d48387c1104a9dd81f582d7f5feb9cf2d2ca03bc5657030b8a06520895",
+      "size_bytes": 1060
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/breaker.py",
+      "sha256": "882a9637ef2b29805d978dbe604085e9859ac1fde4060cedd77faa7e74ea3c1d",
+      "size_bytes": 1975
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/checkpoint.py",
+      "sha256": "835866328cf71e425b1d48e17caacad6d5295f9dfd0899f4403d139a124c5a29",
+      "size_bytes": 1860
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/cli.py",
+      "sha256": "41c4f5f0fdb2de1f5fbff4aac77cf995601984c44651e8a8dba64a688ba24b23",
+      "size_bytes": 2190
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/common.py",
+      "sha256": "d6f86d365daa2fb11ca1d00f9effd3bf5d8c7209161820de7b70faf3671d873a",
+      "size_bytes": 2141
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/config.py",
+      "sha256": "ab6f98e051f9032f89f19a6904b04de6be34b8b13e32008d85f13fa49f4a6af5",
+      "size_bytes": 3458
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/cooldown.py",
+      "sha256": "6a26893995e2f276342c7ac6cf3789838a4f481574fdb20040b7ec22d4a6b1b7",
+      "size_bytes": 2340
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/dashboard.py",
+      "sha256": "0114964c0aacd7fe95b2b4fdb7716b8e485c251dd74ca93733069371f88e24f6",
+      "size_bytes": 1710
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/fills.py",
+      "sha256": "79e8ecdbfc10569c13e6e24274423f469e634df829374d032bfb19c071170d39",
+      "size_bytes": 2081
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/ledger.py",
+      "sha256": "d7015956bae984fbd4f9c6c80d8cdaafe7a6db7c60b1ef476b4c4bf36c3c0074",
+      "size_bytes": 1917
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/market.py",
+      "sha256": "43d881a4e0003b0e03960cb0d877f5025922a275ddbea315345a88d871f428d4",
+      "size_bytes": 2475
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/parameters.py",
+      "sha256": "df2f98115f3364bdedcdf335905592b2bbec8ffdf45d8a61152f5232bd4ead7c",
+      "size_bytes": 2013
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/readiness.py",
+      "sha256": "15ba03dc99e315a686c7bf36988d1ab483a345b8dc8ea794df670424328cb46f",
+      "size_bytes": 2039
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/risk.py",
+      "sha256": "19cd4ebc83782535e685b8f652985b455fcfbf9feee3aaf9b823b287ff17e3e4",
+      "size_bytes": 2177
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/runtime.py",
+      "sha256": "bef19c9488e6e8a1d36c3fc59919b0dbbe22d441f5e0a3a1ce1b51d2a4420d5b",
+      "size_bytes": 6057
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/session.py",
+      "sha256": "a4628dce5363de60ddaa43f8e2a137dff19e3c129d88561d502ed2bdec68df1f",
+      "size_bytes": 2660
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/shadow.py",
+      "sha256": "0d9713fdc958696cd67c3515142780e286d5c34938674b7c5b93e4023bb6769e",
+      "size_bytes": 1443
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/slippage.py",
+      "sha256": "f74ad369f94a3749c18bce26650f9a081fa2d1d160b1d15f326245935d91afa2",
+      "size_bytes": 1657
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/state.py",
+      "sha256": "4eba9052df46b4898ed8e6e216692cc258f83feac863315b3f82a7fcd0348dfe",
+      "size_bytes": 2408
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/universe.py",
+      "sha256": "e54f340451d287def301569b9b328b55f37da666800313bd5db17288fdf10f72",
+      "size_bytes": 2286
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "freqtrade/hedge/r56/warmup.py",
+      "sha256": "f992784bf95448560ab231a9279bb67c544e33cd4c111f4421780b96b8281ac4",
+      "size_bytes": 1319
+    },
+    {
+      "baseline_sha256": "ca76e73f55b45b0e3caccef1cc0a4b1260318513ad113d3d331fd5b8607bd83a",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/rpc/api_server/hedge_dashboard.py",
+      "sha256": "f457d86a77a1a549e6a34d49266b745db9a7a79ee707a425ac214bb9a12df05d",
+      "size_bytes": 7389
+    },
+    {
+      "baseline_sha256": "5e6c094336ba4f0a3427819f9c468b612a51d8fba15a5de0c5bce9186307605d",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/rpc/api_server/hedge_dashboard_schemas.py",
+      "sha256": "04db83bde3bf0162913cc6ea953e569106b9378169fdf3901260cb10720d8814",
+      "size_bytes": 2512
+    },
+    {
+      "baseline_sha256": "0ad703ec4adc3843c24ae6db36f56fa98d89bf74fb0c890499769d37de580bc4",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/rpc/api_server/hedge_ui/app.js",
+      "sha256": "ad643eaa4be0f69aa838938e0818bbbd1d0b0c342a451fdaaa3aa1c5552403b2",
+      "size_bytes": 4307
+    },
+    {
+      "baseline_sha256": "a72b3dc0fd6e4f9dc68568d10467a839c93fd749607df494980878a842f07605",
+      "operation": "MODIFY",
+      "relative_path": "freqtrade/rpc/api_server/hedge_ui/index.html",
+      "sha256": "7645441196c361a5c97eaa56c078b1e930f7a62cbe427e1806d97741568176f6",
+      "size_bytes": 1650
+    },
+    {
+      "baseline_sha256": "d7960b378da71c36347e21d8d45293f37ca155b4bf38445d4785c990028e2a0a",
+      "operation": "MODIFY",
+      "relative_path": "pyproject.toml",
+      "sha256": "efb5fecb68983dc62df4f390ea47f1b6c970f2938aeb86d8e95ecec9ad6b4302",
+      "size_bytes": 8160
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "scripts/Run-Freqtrade-Hedge-R5.6-DryRun-Operations.ps1",
+      "sha256": "01476cc30da38fb9a699717e2c3a4f5f242600421637ee476b002f72608f96ba",
+      "size_bytes": 2974
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_config_and_project_integration.py",
+      "sha256": "dec53e53e6ab8b1cb9ad4e37bb443e713e2bfcb61565ba8ce5a85dbf4e5b7b77",
+      "size_bytes": 1796
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round01_session.py",
+      "sha256": "20d3c9c5621888b2efe8863d66141d8e0ec38355930a2e4150f16260554fa296",
+      "size_bytes": 601
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round02_state.py",
+      "sha256": "e9fa172414c5e535c8d8a8e6af25374c03014de64c3a1848def6a25f6f6ad971",
+      "size_bytes": 724
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round03_market.py",
+      "sha256": "d3d76e3da8d0cc51946ba99048caa979755146276e77d88ccac481400a3ff0a2",
+      "size_bytes": 699
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round04_warmup.py",
+      "sha256": "6c1017c8f5eff823e6e3d47acdb95fe1498010e7b647a7adb66e6ae5bf621b51",
+      "size_bytes": 443
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round05_universe.py",
+      "sha256": "4f9606770b76a3b07479494eadbb803842504178526eb8b155fa4b66c63afc12",
+      "size_bytes": 529
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round06_allocation.py",
+      "sha256": "716d0c7a08228f80bca22d41d98c7918f4def68eb0444f159b87332b95f6aaaa",
+      "size_bytes": 575
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round07_admission.py",
+      "sha256": "ac81115f317b36a4a519495246887d34e43a586405a0fee38d97753b06ae40ce",
+      "size_bytes": 915
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round08_slippage.py",
+      "sha256": "d65ff495c8ee49acbd2de4e782e4f3abaaf04d99fe718f0d974bd7100a63e13c",
+      "size_bytes": 609
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round09_fills.py",
+      "sha256": "8db2901e090f2f95f74b1bc715f0660043b4c6131808bccd3c0dc37078c355bf",
+      "size_bytes": 801
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round10_ledger.py",
+      "sha256": "69e23f239a2766c8b0cbf28126ba9f06f17b98ef86657887b17b46f1c3aba876",
+      "size_bytes": 669
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round11_risk.py",
+      "sha256": "0351622bd5b603c0182738a7183621d0a08b2f240f4629541ca6b62c13f8dc1c",
+      "size_bytes": 520
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round12_breaker.py",
+      "sha256": "ac7b2da5cc66ef560a99f9e14778dab6837777f56ce66c4f7086b3787d038b20",
+      "size_bytes": 577
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round13_cooldown.py",
+      "sha256": "f5a09f312730a67db958534b18e15f54dda89a19281740328aece6b72d558084",
+      "size_bytes": 782
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round14_parameters.py",
+      "sha256": "7e0cccac9a24cef6755ede73204eebcb0146c5963b83bf91ecb1e7103dcf23a9",
+      "size_bytes": 589
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round15_shadow.py",
+      "sha256": "3350acad04cbb9e330e1589ad813ccb5ea78ffae18a4a1070b0e46f0c0577059",
+      "size_bytes": 444
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round16_checkpoint.py",
+      "sha256": "b3f63d291c6fb74b8e6a4e14b386ce455187a0386faecbaea7ee3a805c33210b",
+      "size_bytes": 637
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round17_attribution.py",
+      "sha256": "3a98be3dd7e314ad5b6c3bb543043a4e7a37d8356aea68a19a482515bc4d7f49",
+      "size_bytes": 376
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round18_alerts.py",
+      "sha256": "51ee9c2c76b24e3fad90c34d1e3ed2247b4aaad0d18056603f3e0ffe790131d1",
+      "size_bytes": 522
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round19_dashboard.py",
+      "sha256": "43d5f5cbd76c7d35f4582905e8b8928fe1f95977da710b0f72a2c047e26b5cdd",
+      "size_bytes": 499
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_round20_readiness.py",
+      "sha256": "9361faf60648ca8fc7aef20b4c998272da38bbad2717520cc65642e4a07a5fa1",
+      "size_bytes": 701
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tests/hedge/r56/test_runtime_integration.py",
+      "sha256": "dfd97e78c73839fcd6f5f56827607709b19d011d2ea6ebb24f9fa86e05226c68",
+      "size_bytes": 1614
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/VERSION",
+      "sha256": "a781ec4676c04b90880bc58dae735da2b4641c89600be157c761a70e6998c0af",
+      "size_bytes": 31
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/__init__.py",
+      "sha256": "62a800ac1659c8126bb1c69d50ea3cfca929a979406af01c70f54028415f8491",
+      "size_bytes": 31
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/r560_toolkit/__init__.py",
+      "sha256": "f0870f0a6eccdb1e970097ea8954265cd13ae88b2a1c263324d8f711f4600bfc",
+      "size_bytes": 56
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/r560_toolkit/__main__.py",
+      "sha256": "1924a34c093af086e484c2996cd6032f099254fe41383f0c1be3c4fcd484b873",
+      "size_bytes": 62
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/r560_toolkit/offline_acceptance.py",
+      "sha256": "c0d88fdc5c2223ddf95a9f1aa82927270aa5bc374ae5d1e840e8fdf27b506120",
+      "size_bytes": 7056
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/r560_toolkit/source_audit.py",
+      "sha256": "62797e0412ee489c1fcf21cfcabdb655fe1bf1ef3bf63c198ca4cfac52e92717",
+      "size_bytes": 3497
+    },
+    {
+      "baseline_sha256": null,
+      "operation": "ADD",
+      "relative_path": "tools/hedge_r560/tests/test_toolkit.py",
+      "sha256": "ede356cc8285c39513d25933e419d5569b1c6ca8c121c9664a49be06f106248d",
+      "size_bytes": 388
+    }
+  ],
+  "installer_exchange_access": "NONE",
+  "mainnet_writes": "LOCKED",
+  "real_order_requests": 0,
+  "release": "R5.6.0-DryRunProductionization",
+  "schema_version": 1
+}

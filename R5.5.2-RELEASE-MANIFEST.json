@@ -1,0 +1,35 @@
+{
+  "baseline_anchors": [
+    {
+      "allowed_sha256": [
+        "180aa13cddb4db66f0054d727da9a12c49f8ee3ed34f5e795e5bf1acbe4e8922"
+      ],
+      "relative_path": "R5.4-RELEASE-NOTES.md"
+    },
+    {
+      "allowed_sha256": [
+        "9c1b95cc4d5d99c5e89957d05dc5f8011e7be82e7e70fcd71a77c1d50a7bf7a1"
+      ],
+      "relative_path": "R5.4-SOURCE-MANIFEST.json"
+    },
+    {
+      "allowed_sha256": [
+        "d01aaa23647070b3ae2894b3f35858386cfa0ad9521c9736b8ec5def5b2e1b6a"
+      ],
+      "relative_path": "freqtrade/hedge/r54/__init__.py"
+    },
+    {
+      "allowed_sha256": [
+        "701bb55184e67414b284a3de1f5015fff14d5577482f847da84e66f33b9492a1"
+      ],
+      "relative_path": "R5.3.2-RELEASE-NOTES.md"
+    }
+  ],
+  "diagnostic_policy": "CONTINUE_ALL_THEN_ROLLBACK_R5.5.2_AND_R5.5_ONLY",
+  "exchange_access_during_install": "NONE",
+  "mainnet_writes": "LOCKED",
+  "real_order_requests": 0,
+  "release": "R5.5.2-DryRunUIStrategyCompatibilityCompletion",
+  "schema_version": 1,
+  "source_manifest_sha256": "9501f4e001d870af7982c3dc312d8663b4921d7ec48a6bd380f1c61c2d58debf"
+}

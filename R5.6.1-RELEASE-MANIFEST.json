@@ -1,0 +1,18 @@
+{
+  "base_release": "R5.6.0-DryRunProductionization",
+  "exchange_access_during_build": "NONE",
+  "external_operational_evidence": "PENDING_USER_DOCKER_ENVIRONMENT",
+  "focused_tests": 25,
+  "installer_hotfix": "R5.6.1-H2-RUNTIME-ACCEPTANCE-CLOSURE",
+  "mainnet_writes": "LOCKED",
+  "managed_file_count": 57,
+  "offline_acceptance": "24/24 PASS",
+  "r56_r561_tests": "PENDING_FULL_ENVIRONMENT",
+  "real_order_requests_during_build": 0,
+  "release": "R5.6.1-DockerRuntimeHardening",
+  "schema_version": 1,
+  "source_audit": "19/19 PASS",
+  "source_manifest": "R5.6.1-SOURCE-MANIFEST.json",
+  "source_manifest_sha256": "43eec28e2e9052ea081397dd4e7a659e4dbb8af79cef4220a13682f1970a4cbc",
+  "toolkit_tests": 2
+}

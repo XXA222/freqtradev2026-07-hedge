@@ -1,0 +1,21 @@
+Freqtrade-Hedge R5.3.0 authoritative execution build validation
+
+Build environment results:
+- Python compileall: PASS
+- R5.3/R5.2/R5.1/R5.0/R4 combined targeted tests: 112 passed
+- R5.3 offline audit acceptance: 106/106 passed
+- Fresh schema authority tables: PASS
+- H3-033/H3-034 migration create/verify: PASS
+- Source/package validation: performed after final packaging
+
+Build-environment limitation:
+- The container does not include the complete Windows Freqtrade dependency set.
+- The OneShot installer therefore reruns R3.0-R3.8.1 and the complete tests/hedge
+  suite in the user's validated Windows virtual environment.
+
+Safety:
+- Installer exchange access: NONE
+- Installer mainnet order requests: 0
+- Protected-mainnet audit order requests: 0
+- Mainnet exchange write default: LOCKED
+- 24/72-hour unattended evidence: PENDING ELAPSED OPERATIONAL TIME

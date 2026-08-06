@@ -1,0 +1,23 @@
+{
+  "release": "N7K2-R2.3.0",
+  "base": "Freqtrade 2026.8-dev + Hedge R2.2 R1.0.5 FULL_PASS",
+  "capability": "BINANCE_READONLY_PREFLIGHT_AND_PROXY",
+  "runtime_started_by_installer": false,
+  "exchange_writes": "LOCKED",
+  "features": [
+    "explicit REST HTTP(S) proxy",
+    "explicit WebSocket HTTP(S) proxy",
+    "CCXT proxy inheritance",
+    "REST-only account preflight CLI",
+    "clock, permission, Hedge Mode, Cross margin and leverage gates",
+    "unmanaged position and order fail-closed detection",
+    "sanitized JSON evidence"
+  ],
+  "external_evidence_remaining": [
+    "real Binance read-only preflight PASS",
+    "24-hour read-only soak",
+    "72-hour read-only soak covering at least one funding period",
+    "PostgreSQL migration and recovery matrix",
+    "Binance testnet execution lifecycle"
+  ]
+}

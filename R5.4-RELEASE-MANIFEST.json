@@ -1,0 +1,16 @@
+{
+  "base_release": "R5.3.2-ResourceClosure",
+  "external_evidence_status": {
+    "mainnet_promotion": "PENDING_MANUAL_STAGED_EXECUTION",
+    "mainnet_readonly_24h": "PENDING_REAL_ELAPSED_TIME",
+    "mainnet_readonly_72h": "PENDING_REAL_ELAPSED_TIME_AND_FUNDING",
+    "postgres_matrix": "PENDING_REAL_POSTGRES_SERVICE",
+    "testnet_lifecycle": "PENDING_REAL_TESTNET"
+  },
+  "mainnet_writes": "LOCKED",
+  "offline_acceptance": "20/20 PASS",
+  "release": "R5.4.0-OperationalEvidencePromotion",
+  "schema_version": 1,
+  "source_manifest_sha256": "9c1b95cc4d5d99c5e89957d05dc5f8011e7be82e7e70fcd71a77c1d50a7bf7a1",
+  "twenty_rounds_completed": true
+}
