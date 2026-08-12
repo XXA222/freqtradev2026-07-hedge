@@ -6,7 +6,7 @@ import hmac
 import json
 import math
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlencode, urlsplit
@@ -33,12 +33,12 @@ from .binance_normalizer import (
     normalize_account_snapshot,
     normalize_configuration,
     normalize_fills,
+    normalize_order,
     normalize_orders,
     normalize_positions,
     strict_bool,
 )
 from .clock_sync import ClockSynchronizer
-from .symbol_codec import normalize_exchange_symbols, to_binance_symbol
 from .rate_limit import (
     AdaptiveWeightLimiter,
     BinanceDataError,
@@ -49,6 +49,7 @@ from .rate_limit import (
     parse_retry_after,
     run_with_retry,
 )
+from .symbol_codec import normalize_exchange_symbols, to_binance_symbol
 
 
 def _positive_finite_float(value: Any, *, field: str) -> float:
@@ -189,11 +190,13 @@ def _deduplicate_orders(facts: Sequence[OrderFact]) -> tuple[OrderFact, ...]:
         previous = deduplicated.get(key)
         if previous is None or item.update_time_ms > previous.update_time_ms:
             deduplicated[key] = item
-        elif item.update_time_ms == previous.update_time_ms:
-            if _order_core(previous) != _order_core(item):
-                raise BinanceDataError(
-                    f"Conflicting duplicate order: {item.exchange_order_id}"
-                )
+        elif (
+            item.update_time_ms == previous.update_time_ms
+            and _order_core(previous) != _order_core(item)
+        ):
+            raise BinanceDataError(
+                f"Conflicting duplicate order: {item.exchange_order_id}"
+            )
     return tuple(
         sorted(
             deduplicated.values(),
@@ -240,6 +243,8 @@ class BinanceAccountBundle:
     collection_started_at: datetime
     collection_completed_at: datetime
     order_history: tuple[OrderFact, ...] = ()
+    order_history_query_recovered_ids: tuple[str, ...] = ()
+    order_history_snapshot_fallback_ids: tuple[str, ...] = ()
 
 
 class AiohttpBinanceRestTransport:
@@ -255,6 +260,7 @@ class AiohttpBinanceRestTransport:
         ("GET", "/fapi/v3/positionRisk"),
         ("GET", "/fapi/v2/positionRisk"),
         ("GET", "/fapi/v1/openOrders"),
+        ("GET", "/fapi/v1/order"),
         ("GET", "/fapi/v1/allOrders"),
         ("GET", "/fapi/v1/userTrades"),
         ("GET", "/fapi/v1/positionSide/dual"),
@@ -309,7 +315,7 @@ class AiohttpBinanceRestTransport:
         self._recv_window_ms = recv_window_value
         self._proxy_url = _validated_proxy_url(proxy_url, field="proxy_url")
         if not isinstance(trust_env_proxy, bool):
-            raise ValueError("trust_env_proxy must be a boolean")
+            raise TypeError("trust_env_proxy must be a boolean")
         self._trust_env_proxy = trust_env_proxy
         self._http_session = session
         self._owns_http_session = session is None
@@ -580,7 +586,7 @@ class BinanceReadonlyClient:
         self.transport = transport
         self.account_id = account_id.strip()
         if isinstance(managed_symbols, (str, bytes)):
-            raise ValueError("managed_symbols must be a sequence of symbols, not a string")
+            raise TypeError("managed_symbols must be a sequence of symbols, not a string")
         self.managed_symbols = normalize_exchange_symbols(list(managed_symbols))
         if not self.managed_symbols:
             raise ValueError("managed_symbols must not be empty")
@@ -710,6 +716,30 @@ class BinanceReadonlyClient:
             spot_margin=spot_margin,
         )
         warnings: tuple[str, ...] = ()
+        if effective.require_futures_enabled and futures_enabled is not True:
+            try:
+                await self.fetch_account_info()
+            except BinanceTransportError as exc:
+                if exc.status not in {401, 403} and exc.code not in {-2014, -2015}:
+                    raise
+                warnings = warnings + (
+                    (
+                        "BINANCE_ENABLE_FUTURES_FALSE_OR_MISSING;"
+                        "AUTHENTICATED_USDM_USER_DATA_READ_DENIED"
+                    ),
+                )
+            else:
+                permission_reasons = tuple(
+                    reason
+                    for reason in permission_reasons
+                    if reason != "FUTURES_PERMISSION_MISSING"
+                )
+                warnings = warnings + (
+                    (
+                        "BINANCE_ENABLE_FUTURES_FALSE_OR_MISSING;"
+                        "AUTHENTICATED_USDM_USER_DATA_READ_CONFIRMED"
+                    ),
+                )
         if (
             initial_reasons == ("API_RESTRICTIONS_UNAVAILABLE",)
             and effective.allow_testnet_restriction_endpoint_unavailable
@@ -726,14 +756,18 @@ class BinanceReadonlyClient:
             )
             initial_reasons = ()
             warnings = (
-                "TESTNET_API_RESTRICTIONS_UNAVAILABLE;"
-                "FUTURES_ACCESS_MUST_BE_PROVEN_BY_AUTHENTICATED_USDM_BOOTSTRAP",
+                (
+                    "TESTNET_API_RESTRICTIONS_UNAVAILABLE;"
+                    "FUTURES_ACCESS_MUST_BE_PROVEN_BY_AUTHENTICATED_USDM_BOOTSTRAP"
+                ),
             )
         reasons = initial_reasons + permission_reasons
         if futures_enabled is True:
             warnings = warnings + (
-                "BINANCE_FUTURES_CREDENTIAL_WRITE_PERMISSION_NOT_SEPARATELY_VERIFIABLE;"
-                "APPLICATION_ENDPOINT_ALLOWLIST_REQUIRED",
+                (
+                    "BINANCE_FUTURES_CREDENTIAL_WRITE_PERMISSION_NOT_SEPARATELY_VERIFIABLE;"
+                    "APPLICATION_ENDPOINT_ALLOWLIST_REQUIRED"
+                ),
             )
         report = ApiPermissionReport(
             read_enabled=read_enabled is True,
@@ -770,7 +804,10 @@ class BinanceReadonlyClient:
         raise BinanceDataError("No supported Binance account endpoint succeeded")
 
     async def fetch_positions(
-        self, symbols: Sequence[str] | None = None
+        self,
+        symbols: Sequence[str] | None = None,
+        *,
+        symbol_configurations: Sequence[Mapping[str, Any]] | None = None,
     ) -> tuple[PositionFact, ...]:
         params: dict[str, Any] = {}
         if symbols is not None:
@@ -785,8 +822,26 @@ class BinanceReadonlyClient:
                 data = response.data
                 if not isinstance(data, Sequence) or isinstance(data, (str, bytes)):
                     raise BinanceDataError(f"{path} returned invalid data")
+                position_configurations = symbol_configurations
+                if path == "/fapi/v3/positionRisk" and position_configurations is None:
+                    requires_configuration = any(
+                        isinstance(item, Mapping)
+                        and (
+                            (
+                                item.get("marginType", item.get("mt")) in (None, "")
+                                and "isolated" not in item
+                            )
+                            or item.get("leverage") in (None, "", 0, "0")
+                        )
+                        for item in data
+                    )
+                    if requires_configuration:
+                        position_configurations = await self.fetch_symbol_configuration(None)
                 return normalize_positions(
-                    data, account_id=self.account_id, observed_at=self.clock.now()
+                    data,
+                    account_id=self.account_id,
+                    observed_at=self.clock.now(),
+                    symbol_configurations=position_configurations,
                 )
             except BinanceTransportError as exc:
                 if exc.status == 404:
@@ -809,6 +864,78 @@ class BinanceReadonlyClient:
             account_id=self.account_id,
             observed_at=self.clock.now(),
             system_client_order_prefixes=self.system_client_order_prefixes,
+        )
+
+    async def fetch_order_status(
+        self, symbol: str, *, order_id: str
+    ) -> OrderFact:
+        """Read one order by exchange id without changing exchange state."""
+        normalized_order_id = str(order_id).strip()
+        if not normalized_order_id:
+            raise ValueError("order_id is required")
+        response = await self.transport.request(
+            "GET",
+            "/fapi/v1/order",
+            params={"symbol": to_binance_symbol(symbol), "orderId": normalized_order_id},
+            signed=True,
+            weight=1,
+        )
+        if not isinstance(response.data, Mapping):
+            raise BinanceDataError("query order returned invalid data")
+        return normalize_order(
+            response.data,
+            account_id=self.account_id,
+            observed_at=self.clock.now(),
+            source="BINANCE_REST_QUERY_ORDER",
+            system_client_order_prefixes=self.system_client_order_prefixes,
+        )
+
+    async def _cover_open_orders_in_history(
+        self,
+        open_orders: Sequence[OrderFact],
+        order_history: Sequence[OrderFact],
+    ) -> tuple[tuple[OrderFact, ...], tuple[str, ...], tuple[str, ...]]:
+        """Ensure current open orders remain represented outside the bounded history window.
+
+        Binance ``allOrders`` is time-windowed while ``openOrders`` is a current-state
+        surface.  An old still-open GTC order can therefore be absent from a short
+        history lookback.  Recover missing identities through the read-only Query
+        Order endpoint.  If Binance's documented retention prevents that lookup,
+        retain the current ``openOrders`` fact as explicitly-labelled authoritative
+        snapshot evidence instead of producing a false acceptance failure.
+        """
+        combined = list(order_history)
+        known = {item.key for item in order_history}
+        query_recovered: list[str] = []
+        snapshot_fallback: list[str] = []
+        for item in open_orders:
+            if not item.active or item.key in known:
+                continue
+            try:
+                recovered = await self.fetch_order_status(
+                    item.symbol, order_id=item.exchange_order_id
+                )
+            except BinanceTransportError as exc:
+                if exc.code not in {-2011, -2013} and exc.status != 404:
+                    raise
+                recovered = replace(
+                    item,
+                    source="BINANCE_REST_OPEN_ORDERS_RETENTION_FALLBACK",
+                )
+                snapshot_fallback.append(item.exchange_order_id)
+            if recovered.key != item.key:
+                raise BinanceDataError(
+                    "Query Order identity mismatch for current open order "
+                    f"{item.symbol}:{item.exchange_order_id}"
+                )
+            combined.append(recovered)
+            known.add(recovered.key)
+            if recovered.source == "BINANCE_REST_QUERY_ORDER":
+                query_recovered.append(item.exchange_order_id)
+        return (
+            _deduplicate_orders(combined),
+            tuple(sorted(query_recovered)),
+            tuple(sorted(snapshot_fallback)),
         )
 
     def _history_windows(
@@ -1230,7 +1357,12 @@ class BinanceReadonlyClient:
                 default="0",
             )
             if position_amount != 0 or order_margin != 0:
-                result.add(symbol)
+                try:
+                    result.add(to_binance_symbol(symbol))
+                except ValueError as exc:
+                    raise BinanceDataError(
+                        "Unsupported non-perpetual account exposure: " + symbol
+                    ) from exc
         return result
 
     @classmethod
@@ -1245,11 +1377,17 @@ class BinanceReadonlyClient:
         symbols = set(managed_symbols)
         symbols.update(item.symbol for item in positions if item.quantity != 0)
         symbols.update(item.symbol for item in orders if item.active)
-        symbols.update(
-            str(item.get("symbol") or "").strip().upper()
-            for item in income
-            if str(item.get("symbol") or "").strip()
-        )
+        for item in income:
+            raw_symbol = str(item.get("symbol") or "").strip().upper()
+            if not raw_symbol:
+                continue
+            try:
+                symbols.add(to_binance_symbol(raw_symbol))
+            except ValueError:
+                # Historical delivery-contract income is outside the managed
+                # perpetual universe.  Current exposure is checked separately
+                # through positions/open orders and fails closed there.
+                continue
         symbols.update(cls._account_payload_history_symbols(account_payload))
         return tuple(sorted(symbols))
 
@@ -1265,9 +1403,11 @@ class BinanceReadonlyClient:
         tuple[OrderFact, ...],
         tuple[FillFact, ...],
         tuple[Mapping[str, Any], ...],
+        tuple[str, ...],
+        tuple[str, ...],
     ]:
         if not include_fills:
-            return (), (), ()
+            return (), (), (), (), ()
         income = await self.fetch_income_history(start_time_ms=fill_start_time_ms)
         symbols = self._discovered_history_symbols(
             account_payload, positions, orders, income, self.managed_symbols
@@ -1276,7 +1416,10 @@ class BinanceReadonlyClient:
             self.fetch_all_orders(symbols, start_time_ms=fill_start_time_ms),
             self.fetch_fills(symbols, start_time_ms=fill_start_time_ms),
         )
-        return order_history, fills, income
+        order_history, _query_recovered, _snapshot_fallback = (
+            await self._cover_open_orders_in_history(orders, order_history)
+        )
+        return order_history, fills, income, _query_recovered, _snapshot_fallback
 
     async def fetch_bundle(
         self,
@@ -1312,7 +1455,13 @@ class BinanceReadonlyClient:
             positions=positions,
             orders=orders,
         )
-        order_history, fills, income = history
+        (
+            order_history,
+            fills,
+            income,
+            query_recovered_ids,
+            snapshot_fallback_ids,
+        ) = history
         return BinanceAccountBundle(
             account_snapshot=snapshot,
             balances=balances,
@@ -1324,4 +1473,6 @@ class BinanceReadonlyClient:
             collection_started_at=started,
             collection_completed_at=self.clock.now(),
             order_history=order_history,
+            order_history_query_recovered_ids=query_recovered_ids,
+            order_history_snapshot_fallback_ids=snapshot_fallback_ids,
         )

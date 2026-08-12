@@ -972,7 +972,7 @@ class RiskApprovalCommitRow(HedgeModelBase):
     )
 
 
-class R5DailyBudgetRow(HedgeModelBase):
+class ExecutionDailyBudgetRow(HedgeModelBase):
     """Authoritative daily execution budget stored with the execution ledger."""
 
     __tablename__ = "hedge_r5_daily_budgets"
@@ -996,7 +996,7 @@ class R5DailyBudgetRow(HedgeModelBase):
     record_version: Mapped[int] = mapped_column(Integer, nullable=False, default=LEDGER_RECORD_VERSION)
 
 
-class R5BudgetReservationRow(HedgeModelBase):
+class ExecutionBudgetReservationRow(HedgeModelBase):
     """PREPARED/CONFIRMED/RELEASED reservation for a complete write batch."""
 
     __tablename__ = "hedge_r5_budget_reservations"
@@ -1017,7 +1017,7 @@ class R5BudgetReservationRow(HedgeModelBase):
     record_version: Mapped[int] = mapped_column(Integer, nullable=False, default=LEDGER_RECORD_VERSION)
 
 
-class R5IncomeEventRow(HedgeModelBase):
+class ExecutionIncomeEventRow(HedgeModelBase):
     """Idempotent Binance income fact used by the authoritative daily-loss gate."""
 
     __tablename__ = "hedge_r5_income_events"
@@ -1156,9 +1156,9 @@ HEDGE_MODEL_CLASSES = (
     PaperRuntimeCheckpointRow,
     ActionGroupRow,
     RiskApprovalCommitRow,
-    R5DailyBudgetRow,
-    R5BudgetReservationRow,
-    R5IncomeEventRow,
+    ExecutionDailyBudgetRow,
+    ExecutionBudgetReservationRow,
+    ExecutionIncomeEventRow,
     ControlOperationRow,
     AuditEvent,
     SchemaMigrationRecord,

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from threading import RLock
-from typing import Callable
 
 from freqtrade.hedge.contracts.events import OutboxEvent
 from freqtrade.hedge.telemetry.events import HedgeEventType, HedgeTelemetryEvent
@@ -13,7 +13,9 @@ from freqtrade.hedge.telemetry.events import HedgeEventType, HedgeTelemetryEvent
 class InMemoryEventPublisher:
     def __init__(self, callback: Callable[[OutboxEvent], None] | None = None) -> None:
         self._events: list[OutboxEvent] = []
-        self._callback = callback
+        self._callbacks: list[Callable[[OutboxEvent], None]] = []
+        if callback is not None:
+            self._callbacks.append(callback)
         self._lock = RLock()
 
     def publish(self, event: OutboxEvent) -> None:
@@ -21,18 +23,37 @@ class InMemoryEventPublisher:
             raise TypeError("event must be an OutboxEvent")
         with self._lock:
             self._events.append(event)
-        if self._callback is not None:
-            self._callback(event)
+        with self._lock:
+            callbacks = tuple(self._callbacks)
+        for callback in callbacks:
+            callback(event)
 
     def events(self) -> tuple[OutboxEvent, ...]:
         with self._lock:
             return tuple(self._events)
 
     def set_callback(self, callback: Callable[[OutboxEvent], None] | None) -> None:
+        """Replace callbacks for backward compatibility."""
         if callback is not None and not callable(callback):
             raise TypeError("callback must be callable or None")
         with self._lock:
-            self._callback = callback
+            self._callbacks = [] if callback is None else [callback]
+
+    def add_callback(self, callback: Callable[[OutboxEvent], None]) -> None:
+        if not callable(callback):
+            raise TypeError("callback must be callable")
+        with self._lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+
+    def remove_callback(self, callback: Callable[[OutboxEvent], None]) -> None:
+        with self._lock:
+            self._callbacks = [item for item in self._callbacks if item != callback]
+
+    @property
+    def callback_count(self) -> int:
+        with self._lock:
+            return len(self._callbacks)
 
 
 class HedgeEventHubPublisher:
@@ -43,6 +64,7 @@ class HedgeEventHubPublisher:
         if not callable(publish):
             raise TypeError("hub must expose async publish(event)")
         self._hub = hub
+        self._background_tasks: set[asyncio.Task[None]] = set()
 
     def publish(self, event: OutboxEvent) -> None:
         category = event.event_type.split("_", 1)[0]
@@ -67,4 +89,6 @@ class HedgeEventHubPublisher:
         except RuntimeError:
             asyncio.run(coroutine)
         else:
-            loop.create_task(coroutine)
+            task = loop.create_task(coroutine)
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)

@@ -12,6 +12,7 @@ from freqtrade.hedge.exchange.clock_sync import ClockSynchronizer
 from freqtrade.hedge.exchange.rate_limit import (
     BinanceDataError,
     BinancePermissionError,
+    BinanceTransportError,
 )
 
 from ._helpers import FakeClock
@@ -78,6 +79,66 @@ def test_fetch_positions_none_really_reads_full_account():
     assert transport.calls[-1][2]["params"] == {}
 
 
+
+def test_fetch_positions_v3_uses_symbol_config_for_margin_and_leverage():
+    class PositionV3Transport:
+        def __init__(self):
+            self.calls = []
+
+        def set_timestamp_provider(self, provider):
+            self.provider = provider
+
+        async def request(self, method, path, **kwargs):
+            self.calls.append((method, path, kwargs))
+            if path == "/fapi/v3/positionRisk":
+                return BinanceHttpResponse(
+                    [
+                        {
+                            "symbol": "ETHUSDT",
+                            "positionSide": "LONG",
+                            "positionAmt": "1",
+                            "entryPrice": "3000",
+                            "markPrice": "3010",
+                            "unRealizedProfit": "10",
+                            "liquidationPrice": "0",
+                            "isolatedMargin": "0",
+                            "isolatedWallet": "0",
+                            "updateTime": 1,
+                        }
+                    ],
+                    200,
+                    {},
+                )
+            if path == "/fapi/v1/symbolConfig":
+                return BinanceHttpResponse(
+                    [
+                        {
+                            "symbol": "ETHUSDT",
+                            "marginType": "CROSSED",
+                            "leverage": 7,
+                        }
+                    ],
+                    200,
+                    {},
+                )
+            raise AssertionError(path)
+
+    clock = FakeClock()
+    transport = PositionV3Transport()
+    client = readonly_client(transport, clock, symbols=("ETHUSDT",))
+
+    positions = asyncio.run(client.fetch_positions(None))
+
+    assert len(positions) == 1
+    assert positions[0].margin_mode == "cross"
+    assert positions[0].leverage == 7
+    assert "marginType" not in positions[0].raw
+    assert "leverage" not in positions[0].raw
+    assert [call[1] for call in transport.calls] == [
+        "/fapi/v3/positionRisk",
+        "/fapi/v1/symbolConfig",
+    ]
+
 def test_permission_preflight_requires_read_and_futures_but_forbids_money_movement():
     transport = Transport()
     clock = FakeClock()
@@ -105,6 +166,68 @@ def test_permission_preflight_requires_read_and_futures_but_forbids_money_moveme
 
     transport.request = bad_request
     with pytest.raises(BinancePermissionError):
+        asyncio.run(client.preflight_permissions())
+
+
+def test_permission_preflight_accepts_usdm_read_when_enable_futures_is_false():
+    transport = Transport()
+    clock = FakeClock()
+    client = readonly_client(transport, clock)
+
+    async def readonly_request(method, path, **kwargs):
+        transport.calls.append((method, path, kwargs))
+        if path == "/sapi/v1/account/apiRestrictions":
+            return BinanceHttpResponse(
+                {
+                    "enableReading": True,
+                    "enableFutures": False,
+                    "enableWithdrawals": False,
+                    "enableInternalTransfer": False,
+                    "permitsUniversalTransfer": False,
+                    "enableSpotAndMarginTrading": False,
+                },
+                200,
+                {},
+            )
+        if path == "/fapi/v3/account":
+            return BinanceHttpResponse({"assets": [], "positions": []}, 200, {})
+        raise AssertionError(path)
+
+    transport.request = readonly_request
+    report = asyncio.run(client.preflight_permissions())
+
+    assert report.strict_readonly_verified
+    assert report.futures_enabled is False
+    assert any(
+        "AUTHENTICATED_USDM_USER_DATA_READ_CONFIRMED" in warning
+        for warning in report.warnings
+    )
+    assert any(call[1] == "/fapi/v3/account" for call in transport.calls)
+
+
+def test_permission_preflight_rejects_when_metadata_and_usdm_read_are_unavailable():
+    transport = Transport()
+    clock = FakeClock()
+    client = readonly_client(transport, clock)
+
+    async def denied_request(method, path, **kwargs):
+        transport.calls.append((method, path, kwargs))
+        if path == "/sapi/v1/account/apiRestrictions":
+            return BinanceHttpResponse(
+                {
+                    "enableReading": True,
+                    "enableFutures": False,
+                    "enableWithdrawals": False,
+                },
+                200,
+                {},
+            )
+        if path == "/fapi/v3/account":
+            raise BinancePermissionError("denied", status=401, code=-2015)
+        raise AssertionError(path)
+
+    transport.request = denied_request
+    with pytest.raises(BinancePermissionError, match="FUTURES_PERMISSION_MISSING"):
         asyncio.run(client.preflight_permissions())
 
 
@@ -147,6 +270,15 @@ def order_payload(order_id):
         "avgPrice": "100",
         "reduceOnly": False,
         "updateTime": order_id,
+    }
+
+
+def open_order_payload(order_id):
+    return {
+        **order_payload(order_id),
+        "status": "NEW",
+        "executedQty": "0",
+        "avgPrice": "0",
     }
 
 
@@ -205,6 +337,88 @@ def test_fills_and_order_history_paginate_without_gaps():
         for path, params in transport.calls
         if path.endswith("allOrders")
     )
+
+
+def test_fetch_bundle_recovers_open_order_missing_from_bounded_all_orders_history():
+    current = open_order_payload(4242)
+
+    class OpenOrderRecoveryTransport:
+        def __init__(self):
+            self.calls = []
+
+        async def request(self, method, path, **kwargs):
+            params = kwargs.get("params", {})
+            self.calls.append((path, params))
+            responses = {
+                "/fapi/v3/account": account_payload(),
+                "/fapi/v3/positionRisk": position_rows(),
+                "/fapi/v1/openOrders": [current],
+                "/fapi/v1/positionSide/dual": {"dualSidePosition": True},
+                "/fapi/v1/symbolConfig": [
+                    {"symbol": "BTCUSDT", "marginType": "CROSSED", "leverage": 5}
+                ],
+                "/fapi/v1/income": [],
+                "/fapi/v1/allOrders": [],
+                "/fapi/v1/userTrades": [],
+                "/fapi/v1/order": current,
+            }
+            return BinanceHttpResponse(responses[path], 200, {})
+
+    clock = FakeClock()
+    transport = OpenOrderRecoveryTransport()
+    client = readonly_client(transport, clock)
+    bundle = asyncio.run(
+        client.fetch_bundle(
+            include_fills=True,
+            fill_start_time_ms=int(clock.now().timestamp() * 1000) - 1000,
+        )
+    )
+
+    assert [item.exchange_order_id for item in bundle.open_orders] == ["4242"]
+    assert [item.exchange_order_id for item in bundle.order_history] == ["4242"]
+    assert bundle.order_history[0].source == "BINANCE_REST_QUERY_ORDER"
+    assert bundle.order_history_query_recovered_ids == ("4242",)
+    assert bundle.order_history_snapshot_fallback_ids == ()
+    query_call = next(params for path, params in transport.calls if path == "/fapi/v1/order")
+    assert query_call == {"symbol": "BTCUSDT", "orderId": "4242"}
+
+
+def test_open_order_retention_gap_uses_explicit_current_snapshot_fallback():
+    current = open_order_payload(5252)
+
+    class RetentionTransport:
+        async def request(self, method, path, **kwargs):
+            responses = {
+                "/fapi/v3/account": account_payload(),
+                "/fapi/v3/positionRisk": position_rows(),
+                "/fapi/v1/openOrders": [current],
+                "/fapi/v1/positionSide/dual": {"dualSidePosition": True},
+                "/fapi/v1/symbolConfig": [
+                    {"symbol": "BTCUSDT", "marginType": "CROSSED", "leverage": 5}
+                ],
+                "/fapi/v1/income": [],
+                "/fapi/v1/allOrders": [],
+                "/fapi/v1/userTrades": [],
+            }
+            if path == "/fapi/v1/order":
+                raise BinanceTransportError(
+                    "Order does not exist", status=400, code=-2013, retryable=False
+                )
+            return BinanceHttpResponse(responses[path], 200, {})
+
+    clock = FakeClock()
+    client = readonly_client(RetentionTransport(), clock)
+    bundle = asyncio.run(
+        client.fetch_bundle(
+            include_fills=True,
+            fill_start_time_ms=int(clock.now().timestamp() * 1000) - 1000,
+        )
+    )
+
+    assert [item.exchange_order_id for item in bundle.order_history] == ["5252"]
+    assert bundle.order_history[0].source == "BINANCE_REST_OPEN_ORDERS_RETENTION_FALLBACK"
+    assert bundle.order_history_query_recovered_ids == ()
+    assert bundle.order_history_snapshot_fallback_ids == ("5252",)
 
 
 def test_income_history_uses_current_one_based_page_parameter():
@@ -484,6 +698,134 @@ def test_configuration_confirmation_uses_symbol_config_even_when_flat():
     }
 
 
+
+
+def test_bundle_tolerates_accountwide_delivery_symbol_config_metadata():
+    class BundleTransport:
+        def __init__(self):
+            self.calls = []
+
+        async def request(self, method, path, **kwargs):
+            self.calls.append((path, kwargs.get("params", {})))
+            if path == "/fapi/v3/account":
+                return BinanceHttpResponse(account_payload(), 200, {})
+            if path == "/fapi/v3/positionRisk":
+                return BinanceHttpResponse(
+                    [
+                        {
+                            "symbol": "ETHUSDT",
+                            "positionSide": "LONG",
+                            "positionAmt": "0",
+                            "entryPrice": "0",
+                            "markPrice": "3000",
+                            "unRealizedProfit": "0",
+                            "liquidationPrice": "0",
+                            "isolatedMargin": "0",
+                            "isolatedWallet": "0",
+                            "updateTime": 1,
+                        }
+                    ],
+                    200,
+                    {},
+                )
+            if path == "/fapi/v1/openOrders":
+                return BinanceHttpResponse([], 200, {})
+            if path == "/fapi/v1/positionSide/dual":
+                return BinanceHttpResponse({"dualSidePosition": True}, 200, {})
+            if path == "/fapi/v1/symbolConfig":
+                return BinanceHttpResponse(
+                    [
+                        {
+                            "symbol": "ETHUSDT_261225",
+                            "marginType": "CROSSED",
+                            "leverage": 4,
+                        },
+                        {
+                            "symbol": "ETHUSDT",
+                            "marginType": "CROSSED",
+                            "leverage": 7,
+                        },
+                    ],
+                    200,
+                    {},
+                )
+            raise AssertionError(path)
+
+    clock = FakeClock()
+    transport = BundleTransport()
+    client = readonly_client(transport, clock, symbols=("ETHUSDT",))
+    bundle_value = asyncio.run(client.fetch_bundle(include_fills=False))
+
+    assert bundle_value.configuration.active_margin_modes == ("cross",)
+    assert bundle_value.configuration.leverage_by_symbol_side == {
+        "ETHUSDT:LONG": 7,
+        "ETHUSDT:SHORT": 7,
+    }
+    assert tuple(item.symbol for item in bundle_value.positions) == ("ETHUSDT",)
+
+def test_configuration_confirmation_ignores_delivery_contract_symbol_rows():
+    clock = FakeClock()
+
+    class ModeTransport:
+        async def request(self, method, path, **kwargs):
+            if path.endswith("positionSide/dual"):
+                return BinanceHttpResponse({"dualSidePosition": True}, 200, {})
+            raise AssertionError(path)
+
+    client = readonly_client(ModeTransport(), clock, symbols=("ETHUSDT",))
+    configuration = asyncio.run(
+        client.confirm_configuration(
+            [
+                {
+                    "symbol": "ETHUSDT_261225",
+                    "marginType": "CROSSED",
+                    "leverage": 4,
+                },
+                {
+                    "symbol": "ETHUSDT",
+                    "marginType": "CROSSED",
+                    "leverage": 7,
+                },
+            ]
+        )
+    )
+
+    assert configuration.active_margin_modes == ("cross",)
+    assert configuration.leverage_by_symbol_side == {
+        "ETHUSDT:LONG": 7,
+        "ETHUSDT:SHORT": 7,
+    }
+
+
+def test_history_symbol_discovery_ignores_delivery_income_without_current_exposure():
+    symbols = BinanceReadonlyClient._discovered_history_symbols(
+        {"positions": []},
+        (),
+        (),
+        (
+            {"symbol": "ETHUSDT_261225"},
+            {"symbol": "ETHUSDT"},
+        ),
+        ("BTCUSDT",),
+    )
+
+    assert symbols == ("BTCUSDT", "ETHUSDT")
+
+
+def test_account_payload_delivery_exposure_fails_closed():
+    payload = {
+        "positions": [
+            {
+                "symbol": "ETHUSDT_261225",
+                "positionAmt": "1",
+                "openOrderInitialMargin": "0",
+            }
+        ]
+    }
+
+    with pytest.raises(BinanceDataError, match="non-perpetual account exposure"):
+        BinanceReadonlyClient._account_payload_history_symbols(payload)
+
 def test_configuration_confirmation_rejects_missing_noncross_and_zero_leverage():
     clock = FakeClock()
 
@@ -736,10 +1078,10 @@ def test_history_symbol_discovery_includes_unmanaged_and_income_symbols():
         "acct",
         "ETHUSDT",
         "LONG",
-        Decimal("1"),
-        Decimal("100"),
-        Decimal("101"),
-        Decimal("1"),
+        Decimal(1),
+        Decimal(100),
+        Decimal(101),
+        Decimal(1),
         None,
         5,
         "cross",

@@ -8,6 +8,7 @@ from typing import Any
 
 from freqtrade.enums.hedge import PositionMode
 from freqtrade.exceptions import OperationalException
+from freqtrade.hedge.config_migration import migrate_legacy_operations_alias
 from freqtrade.hedge.paper_config import PaperSimulationConfig
 from freqtrade.hedge.numeric import (
     require_nonnegative_int,
@@ -73,8 +74,13 @@ _HEDGE_ALLOWED_KEYS = frozenset({
     "planner",
     "simulation",
     "dashboard",
-    "r56",
-    "r561",
+    "native_convergence",
+    "universe",
+    "freqai_native",
+    "producer_consumer",
+    "hyperopt_native",
+    "rl_native",
+    "operations",
 })
 
 _CONTROL_PLANE_ALLOWED_KEYS = frozenset({
@@ -134,7 +140,7 @@ _SIMULATION_ALLOWED_KEYS = frozenset({
     "market_slippage_bps", "bar_volume",
 })
 
-_R56_ALLOWED_KEYS = frozenset({
+_OPERATIONS_ALLOWED_KEYS = frozenset({
     "enabled", "state_path",
     "market_max_age_seconds", "market_max_gap_candles",
     "mark_index_max_divergence_bps",
@@ -144,14 +150,6 @@ _R56_ALLOWED_KEYS = frozenset({
     "drawdown_recovery",
 })
 
-_R561_ALLOWED_KEYS = frozenset({
-    "enabled", "required_python", "network_probe_attempts",
-    "network_min_success_ratio", "network_max_last_candle_age_seconds",
-    "network_max_missing_candles", "max_strategy_cycle_age_seconds",
-    "max_reconciliation_age_seconds", "permission_probe_path",
-    "evidence_path", "require_proxy_trust_env",
-    "position_adjustment_owner", "api_exposure_mode",
-})
 
 _DASHBOARD_ALLOWED_KEYS = frozenset({
     "enabled",
@@ -163,6 +161,37 @@ _DASHBOARD_ALLOWED_KEYS = frozenset({
     "control_state_path",
 })
 
+
+_NATIVE_CONVERGENCE_ALLOWED_KEYS = frozenset({
+    "enabled", "callback_mode", "fail_closed_confirmations",
+    "exits", "rpc_projection", "notifications", "capital_policy",
+})
+
+_UNIVERSE_ALLOWED_KEYS = frozenset({
+    "enabled", "pairs", "weights", "blacklist_policy", "drain_removed_pairs",
+    "max_pairs", "minimum_pair_weight",
+})
+
+_FREQAI_NATIVE_ALLOWED_KEYS = frozenset({
+    "enabled", "required", "maximum_signal_age_seconds",
+    "expected_feature_schema", "model_manifest_path",
+    "fail_closed_on_expiry", "compatible_pairs",
+})
+
+_PRODUCER_CONSUMER_ALLOWED_KEYS = frozenset({
+    "enabled", "required", "maximum_age_seconds", "conflict_tolerance",
+    "fail_on_conflict", "producers",
+})
+
+_HYPEROPT_NATIVE_ALLOWED_KEYS = frozenset({
+    "enabled", "epochs", "jobs", "seed", "loss_weights", "result_path",
+})
+
+_RL_NATIVE_ALLOWED_KEYS = frozenset({
+    "enabled", "max_step_ratio", "min_liquidation_buffer",
+    "max_gross_exposure", "require_confidence", "reward_weights",
+    "vector_envs", "device",
+})
 
 
 def _reject_unknown_keys(
@@ -268,6 +297,11 @@ def normalize_hedge_config(
     raw_hedge = config.setdefault("hedge", {})
     if not isinstance(raw_hedge, MutableMapping):
         raise OperationalException("hedge must be a JSON object.")
+    if migrate_legacy_operations_alias(raw_hedge):
+        logger.warning(
+            "Migrated retired Hedge operations configuration to hedge.operations. "
+            "Update the persisted config to the canonical key."
+        )
 
     _normalize_legacy_managed_scope(config, raw_hedge, managed_pair)
     managed_pair = config.get("managed_pair")
@@ -279,8 +313,13 @@ def normalize_hedge_config(
         ("planner", _PLANNER_ALLOWED_KEYS),
         ("simulation", _SIMULATION_ALLOWED_KEYS),
         ("dashboard", _DASHBOARD_ALLOWED_KEYS),
-        ("r56", _R56_ALLOWED_KEYS),
-        ("r561", _R561_ALLOWED_KEYS),
+        ("native_convergence", _NATIVE_CONVERGENCE_ALLOWED_KEYS),
+        ("universe", _UNIVERSE_ALLOWED_KEYS),
+        ("freqai_native", _FREQAI_NATIVE_ALLOWED_KEYS),
+        ("producer_consumer", _PRODUCER_CONSUMER_ALLOWED_KEYS),
+        ("hyperopt_native", _HYPEROPT_NATIVE_ALLOWED_KEYS),
+        ("rl_native", _RL_NATIVE_ALLOWED_KEYS),
+        ("operations", _OPERATIONS_ALLOWED_KEYS),
     ):
         section = raw_hedge.get(section_name, {})
         if not isinstance(section, MutableMapping):

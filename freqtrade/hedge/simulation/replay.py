@@ -21,7 +21,7 @@ from freqtrade.hedge.planning.ideal_orders import PureHedgePlanner
 from freqtrade.hedge.planning.trailing import enter_trailing_cooldown
 from freqtrade.hedge.planning.unstuck import unstuck_budget_keys
 from freqtrade.hedge.integration.paper_risk_gate import apply_new_risk_gate
-from freqtrade.hedge.r55.strategy import (
+from freqtrade.hedge.strategies.contract import (
     StrategyDirective,
     planner_config_for_directive,
     target_net_quantity_for_directive,

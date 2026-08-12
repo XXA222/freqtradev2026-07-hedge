@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from .candle_cursor import bar_fingerprint, missing_candle_count
 
@@ -215,17 +216,7 @@ def signal_from_analyzed_row(
         raise ValueError(
             "analyzed dataframe must contain date/open/high/low/close for Hedge"
         )
-    long_value = (
-        row.get("hedge_long_score")  # type: ignore[attr-defined]
-        if "hedge_long_score" in columns
-        else row.get("enter_long", 0)  # type: ignore[attr-defined]
-    )
-    short_value = (
-        row.get("hedge_short_score")  # type: ignore[attr-defined]
-        if "hedge_short_score" in columns
-        else row.get("enter_short", 0)  # type: ignore[attr-defined]
-    )
-    from freqtrade.hedge.r55.strategy import directive_from_values
+    from freqtrade.hedge.strategies.contract import directive_from_values
 
     directive = directive_from_values(
         {name: row.get(name) for name in columns if name.startswith("hedge_")}  # type: ignore[attr-defined]

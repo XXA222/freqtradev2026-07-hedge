@@ -252,6 +252,18 @@ class InMemoryReadonlyRepository(AtomicReadonlyFactRepository, ReadonlyHistoryCu
         with self._lock:
             return tuple(self._batches)
 
+    @property
+    def account_events(self) -> tuple[AccountEventFact, ...]:
+        """Return an immutable event-evidence snapshot for diagnostics/acceptance."""
+        with self._lock:
+            return tuple(
+                sorted(
+                    self._account_events.values(),
+                    key=lambda item: (item.event_time_ms, item.event_type, item.identity),
+                )
+            )
+
+
 class PersistenceMirroringReadonlyRepository(InMemoryReadonlyRepository):
     """Mirror direction-two exchange facts into the direction-one ledger.
 

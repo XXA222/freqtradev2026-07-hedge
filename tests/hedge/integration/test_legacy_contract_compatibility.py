@@ -32,7 +32,7 @@ def test_frozen_contract_exports_remain_available() -> None:
     assert HEDGE_EVENT_VERSION == 1
 
 
-def test_p2_h2_numeric_symbol_and_reduce_compatibility() -> None:
+def test_numeric_symbol_and_reduce_compatibility() -> None:
     assert canonicalize_symbol("ETHUSDT", managed_pair="ETH/USDT:USDT") == "ETH/USDT:USDT"
     assert symbols_equivalent("ETHUSDT", "ETH/USDT:USDT")
     assert require_nonnegative_int("2", field="count") == 2

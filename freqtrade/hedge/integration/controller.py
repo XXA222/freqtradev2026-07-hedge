@@ -69,6 +69,9 @@ class HedgeController:
         self.strategy = strategy
         self.paper_application = paper_application
         self.signal_provider = FreqtradeStrategySignalProvider(dataprovider, strategy)
+        self.native_convergence = None
+        self.model_gate = None
+        self.producer_gate = None
         self.production_controller: ProductionHedgeController | None = None
         self.last_production_cycle: ProductionControllerCycle | None = None
         assembly = composition.production_main_loop_assembly
@@ -118,6 +121,105 @@ class HedgeController:
         if self.production_controller is not None:
             self.production_controller.stop()
         self.composition.stop()
+
+    def bind_native_convergence(self, coordinator: object) -> None:
+        """Bind official Freqtrade state/protection/capital adapters to all loops."""
+
+        if not all(hasattr(coordinator, name) for name in ("new_risk_enabled", "admit", "status")):
+            raise TypeError("native convergence coordinator is incompatible")
+        self.native_convergence = coordinator
+        if self.paper_application is not None:
+            self.paper_application.add_new_risk_provider(coordinator.new_risk_enabled)
+            self.paper_application.bind_order_admission_provider(coordinator.admit)
+            transformer = getattr(coordinator, "transform_planner_intent", None)
+            if callable(transformer):
+                self.paper_application.bind_order_transformer(transformer)
+            fill_observer = getattr(coordinator, "notify_order_filled", None)
+            if callable(fill_observer):
+                self.paper_application.add_fill_observer(fill_observer)
+        assembly = self.composition.production_main_loop_assembly
+        if assembly is not None:
+            assembly.loop.bind_order_admission_provider(coordinator.admit)
+            transformer = getattr(coordinator, "transform_planner_intent", None)
+            if callable(transformer):
+                assembly.loop.bind_order_transformer(transformer)
+
+    def bind_model_gate(self, gate: object) -> None:
+        if not callable(getattr(gate, "observe", None)):
+            raise TypeError("model gate must provide observe(signal)")
+        self.model_gate = gate
+
+    def bind_producer_gate(self, gate: object) -> None:
+        if not callable(getattr(gate, "observe", None)):
+            raise TypeError("producer gate must provide observe(signal)")
+        self.producer_gate = gate
+
+    def _observe_native_signal(self, signal: SignalSnapshot) -> None:
+        if self.model_gate is None and self.producer_gate is None:
+            return
+        from freqtrade.hedge.integration.candle_cursor import bar_fingerprint
+        from freqtrade.hedge.native.freqai import HedgeSignalEnvelope
+
+        if signal.candle is None:
+            raise ValueError("native signal evidence requires an analyzed candle")
+        manifest = getattr(self.model_gate, "manifest", None)
+        feature_schema = (
+            getattr(manifest, "feature_schema", None)
+            or str(
+                self._config.get("hedge", {})
+                .get("freqai_native", {})
+                .get("expected_feature_schema", "strategy-columns-v1")
+            )
+        )
+        model_version = getattr(manifest, "model_version", None) or signal.model_version
+        envelope = HedgeSignalEnvelope(
+            pair=signal.symbol,
+            timestamp=signal.candle_close_time,
+            long_score=signal.long_score,
+            short_score=signal.short_score,
+            target_net_ratio=signal.target_net_ratio,
+            target_gross_ratio=None,
+            confidence=signal.confidence,
+            risk_scale=signal.risk_scale,
+            model_version=str(model_version),
+            feature_schema=feature_schema,
+            candle_fingerprint=bar_fingerprint(signal.candle.to_bar_event()),
+            producer_id="freqtrade-strategy",
+            metadata={
+                "reason": signal.reason,
+                "strategy_reason": signal.strategy_reason,
+                "regime": signal.regime,
+            },
+        )
+        if self.model_gate is not None:
+            self.model_gate.observe(envelope)
+        if self.producer_gate is not None:
+            self.producer_gate.observe(envelope, received_at=datetime.now(UTC))
+
+    def cancel_managed_orders(self) -> tuple[int, tuple[str, ...]]:
+        """Cancel only Hedge-owned orders for stop, reload and process cleanup."""
+
+        errors: list[str] = []
+        canceled_count = 0
+        assembly = self.composition.production_main_loop_assembly
+        if assembly is not None and assembly.cycle_owner == "PRODUCTION_CONTROLLER":
+            report = assembly.loop.cancel_managed_orders()
+            canceled_count += len(report.canceled)
+            errors.extend(
+                f"{item.reference}:{item.error_type}:{item.message}" for item in report.errors
+            )
+        elif self.paper_application is not None:
+            # In Paper-owned mode the application owns the planner-to-client mapping.
+            # Calling the assembly loop here would miss those orders.
+            canceled, paper_errors = self.paper_application.cancel_managed_orders()
+            canceled_count += len(canceled)
+            errors.extend(paper_errors)
+        return canceled_count, tuple(errors)
+
+    def native_status(self) -> dict[str, object] | None:
+        if self.native_convergence is None:
+            return None
+        return self.native_convergence.status()
 
     def after_strategy_analyze(self) -> HedgeControllerCycle:
         """Refresh facts and process every unseen closed DataProvider candle.
@@ -205,6 +307,13 @@ class HedgeController:
         funding_healthy = paper_config.funding_source is PaperFundingSource.NONE
         try:
             for index, signal in enumerate(signals):
+                try:
+                    self._observe_native_signal(signal)
+                except Exception as exc:
+                    self.runtime.halt(
+                        f"HEDGE_NATIVE_SIGNAL_EVIDENCE_FAILED:{type(exc).__name__}"
+                    )
+                    raise RuntimeError("Hedge native signal evidence failed closed") from exc
                 if paper_config.ohlcv_source is PaperOhlcvSource.DATAPROVIDER:
                     candle = signal.candle
                     if candle is None:

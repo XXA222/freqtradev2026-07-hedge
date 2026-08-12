@@ -1,4 +1,4 @@
-"""R5.5 integration example; not a profitability claim or production recommendation."""
+"""Clean-mainline adaptive regime example; not a profitability claim."""
 from __future__ import annotations
 import numpy as np
 from pandas import DataFrame
@@ -14,7 +14,7 @@ class HedgeAdaptiveRegimeStrategy(HedgeStrategyMixin, IStrategy):
     minimal_roi={"0":10.0}
     stoploss=-0.99
     use_exit_signal=True
-    def version(self)->str:return "hedge-adaptive-regime-r5.5"
+    def version(self)->str:return "hedge-adaptive-regime-mainline"
     def populate_indicators(self,dataframe:DataFrame,metadata:dict)->DataFrame:
         del metadata
         fast=dataframe["close"].ewm(span=16,adjust=False,min_periods=16).mean()

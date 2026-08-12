@@ -240,7 +240,7 @@ class SqlExecutionLedger(InMemoryExecutionLedger):
             identity = uuid4().hex
             session.add(
                 PositionSnapshot(
-                    snapshot_key=f"R5-SEED:{position_key.lock_name}:{identity}",
+                    snapshot_key=f"ADOPTION-SEED:{position_key.lock_name}:{identity}",
                     fact_key=None,
                     account_id=position_key.account_id,
                     exchange=position_key.exchange,
@@ -258,7 +258,7 @@ class SqlExecutionLedger(InMemoryExecutionLedger):
                     margin_mode="cross",
                     source="REST",
                     sequence_number=None,
-                    source_version="R5.3_ADOPTION_SEED",
+                    source_version="CLEAN_MAINLINE_ADOPTION_SEED",
                     risk_source_snapshot_key=None,
                     source_event_time=naive,
                     observed_at=naive,
@@ -266,7 +266,7 @@ class SqlExecutionLedger(InMemoryExecutionLedger):
                     is_current=True,
                     raw_payload_json=json.dumps(
                         {
-                            "authority": "R5.3",
+                            "authority": "clean-mainline",
                             "fees": str(fees),
                             "funding": str(funding),
                         },

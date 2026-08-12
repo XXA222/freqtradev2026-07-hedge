@@ -4,10 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from integrate_h3_full import IntegrationSafetyError, _patch_native_copy_text, integrate
+from freqtrade.hedge.integration.central_source import (
+    IntegrationSafetyError,
+    _patch_native_copy_text,
+    integrate,
+)
 
 
-FIXTURES = Path(__file__).resolve().parents[3] / "integration" / "fixtures"
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -20,17 +23,19 @@ def _target(tmp_path: Path) -> tuple[Path, Path]:
 def test_central_integration_fails_closed_on_unreleased_trade_model(tmp_path: Path) -> None:
     trade_model, migrations = _target(tmp_path)
     trade_model.write_text(
-        (FIXTURES / "trade_model_2026_6.txt").read_text(encoding="utf-8"),
+        "class Order:\n    pass\n\n"
+        "class LocalTrade:\n    pass\n\n"
+        "class Trade:\n    pass\n",
         encoding="utf-8",
     )
     migrations.write_text(
-        (FIXTURES / "migrations_2026_6_minimal.txt").read_text(encoding="utf-8"),
+        "def migrate_trades_and_orders_table(cols, cols_order):\n    return None\n",
         encoding="utf-8",
     )
     before_trade = trade_model.read_bytes()
     before_migrations = migrations.read_bytes()
 
-    with pytest.raises(IntegrationSafetyError, match="release overlay"):
+    with pytest.raises(IntegrationSafetyError, match="Clean Mainline"):
         integrate(tmp_path)
 
     assert trade_model.read_bytes() == before_trade

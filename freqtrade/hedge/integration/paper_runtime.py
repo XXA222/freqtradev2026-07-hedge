@@ -82,19 +82,27 @@ from freqtrade.hedge.contracts.types import PositionSide as ContractPositionSide
 from freqtrade.hedge.integration.paper_state import NullPaperStateStore, PaperStateStore
 from freqtrade.hedge.integration.candle_cursor import bar_fingerprint
 from freqtrade.hedge.integration.paper_risk_gate import apply_new_risk_gate
-from freqtrade.hedge.r55.control import DryRunControlState
-from freqtrade.hedge.r55.strategy import (
+from freqtrade.hedge.native.admission import (
+    CompositeAdmissionPolicy,
+    apply_planning_admission_gate,
+)
+from freqtrade.hedge.native.callbacks import HedgeStrategyCallbackAdapter
+from freqtrade.hedge.native.exit_overlay import NativeExitOverlay, policies_from_config
+from freqtrade.hedge.native.exits import HedgeExitPolicyEngine
+from freqtrade.hedge.control.dryrun import DryRunControlState
+from freqtrade.hedge.operations.config import operations_config
+from freqtrade.hedge.strategies.contract import (
     StrategyDirective,
     planner_config_for_directive,
     target_net_quantity_for_directive,
 )
-from freqtrade.hedge.r55.telemetry import (
+from freqtrade.hedge.telemetry.dryrun import (
     DryRunCycleTelemetry,
     DryRunTelemetryStore,
     JsonlDryRunTelemetryStore,
     StrategyTelemetry,
 )
-from freqtrade.hedge.r56.runtime import DryRunOperationsRuntime, OperationsCycleInput
+from freqtrade.hedge.operations.runtime import DryRunOperationsRuntime, OperationsCycleInput
 from freqtrade.hedge.runtime import HedgeProjectionSource
 from freqtrade.hedge.simulation.cross_wallet import CrossWallet
 from freqtrade.hedge.simulation.exchange import AccountEvent, BarEvent, FundingEvent
@@ -194,21 +202,38 @@ class PaperCycleResult:
 class _BucketState:
     core_quantity: Decimal = ZERO
     core_average: Decimal = ZERO
+    core_opened_at: datetime | None = None
     tactical_quantity: Decimal = ZERO
     tactical_average: Decimal = ZERO
+    tactical_opened_at: datetime | None = None
 
-    def increase(self, bucket: PositionBucket, quantity: Decimal, price: Decimal) -> None:
+    def increase(
+        self,
+        bucket: PositionBucket,
+        quantity: Decimal,
+        price: Decimal,
+        opened_at: datetime | None = None,
+    ) -> None:
+        opened_at = datetime.now(UTC) if opened_at is None else opened_at
+        if opened_at.tzinfo is None:
+            opened_at = opened_at.replace(tzinfo=UTC)
+        else:
+            opened_at = opened_at.astimezone(UTC)
         if bucket is PositionBucket.CORE:
             total = self.core_quantity + quantity
             self.core_average = (
                 (self.core_quantity * self.core_average + quantity * price) / total
             )
+            if self.core_quantity == ZERO:
+                self.core_opened_at = opened_at
             self.core_quantity = total
         else:
             total = self.tactical_quantity + quantity
             self.tactical_average = (
                 (self.tactical_quantity * self.tactical_average + quantity * price) / total
             )
+            if self.tactical_quantity == ZERO:
+                self.tactical_opened_at = opened_at
             self.tactical_quantity = total
 
     def reduce(self, bucket: PositionBucket, quantity: Decimal) -> None:
@@ -219,22 +244,26 @@ class _BucketState:
             remaining -= used
             if self.core_quantity == 0:
                 self.core_average = ZERO
+                self.core_opened_at = None
         else:
             used = min(remaining, self.tactical_quantity)
             self.tactical_quantity -= used
             remaining -= used
             if self.tactical_quantity == 0:
                 self.tactical_average = ZERO
+                self.tactical_opened_at = None
         # A planner reduction may intentionally span the tactical/core boundary.
         if remaining > 0:
             if bucket is PositionBucket.CORE:
                 self.tactical_quantity = max(self.tactical_quantity - remaining, ZERO)
                 if self.tactical_quantity == 0:
                     self.tactical_average = ZERO
+                    self.tactical_opened_at = None
             else:
                 self.core_quantity = max(self.core_quantity - remaining, ZERO)
                 if self.core_quantity == 0:
                     self.core_average = ZERO
+                    self.core_opened_at = None
 
 
 class IntegratedPaperHedgeApplication:
@@ -275,32 +304,45 @@ class IntegratedPaperHedgeApplication:
         telemetry_capacity = int(dashboard.get("telemetry_capacity", 2000))
         telemetry_backend = str(dashboard.get("telemetry_backend", "memory")).lower()
         if telemetry_backend == "jsonl":
-            telemetry_path = str(dashboard.get("telemetry_path", "user_data/hedge/r55/dryrun_cycles.jsonl"))
+            telemetry_path = str(dashboard.get("telemetry_path", "user_data/hedge/telemetry/dryrun_cycles.jsonl"))
             self.telemetry = JsonlDryRunTelemetryStore(telemetry_path, capacity=telemetry_capacity)
         else:
             self.telemetry = DryRunTelemetryStore(telemetry_capacity)
         control_path = dashboard.get("control_state_path")
         self.dryrun_control = DryRunControlState(None if control_path in {None, ""} else str(control_path))
-        r56_raw = hedge.get("r56", {})
-        r56_config = dict(r56_raw) if isinstance(r56_raw, Mapping) else {}
+        operations_values = dict(operations_config(config))
         self.operations_error: str | None = None
         self.operations: DryRunOperationsRuntime | None = None
-        if bool(r56_config.get("enabled", False)):
-            state_path = r56_config.get("state_path", "user_data/hedge/r56/runtime-state.json")
+        if bool(operations_values.get("enabled", False)):
+            state_path = operations_values.get(
+                "state_path",
+                "user_data/hedge/operations/runtime-state.json",
+            )
             self.operations = DryRunOperationsRuntime(
                 account_id=account_id,
                 symbols=(symbol,),
-                config={"r56": r56_config},
+                config={"hedge": {"operations": operations_values}},
                 state_path=None if state_path in {None, ""} else str(state_path),
             )
-        self.bind_new_risk_provider(
+        self._new_risk_enabled_providers: list[Callable[[], bool]] = []
+        self._order_admission_policy = CompositeAdmissionPolicy()
+        self._intent_transformers: list[Callable[[object], object]] = []
+        self._fill_observers: list[Callable[[object, object, object, object], None]] = []
+        self.add_new_risk_provider(
             lambda: self.dryrun_control.snapshot().new_risk_enabled
             and (
                 self.operations is None
-                or (self.operations_error is None and self.operations.latest is not None and self.operations.latest.new_risk_enabled)
+                or (
+                    self.operations_error is None
+                    and self.operations.latest is not None
+                    and self.operations.latest.new_risk_enabled
+                )
             )
         )
         self.planner = PureHedgePlanner()
+        self._exit_overlay = NativeExitOverlay(
+            HedgeExitPolicyEngine(policies_from_config(config))
+        )
         self.long_state = StrategyLegState(PositionSide.LONG)
         self.short_state = StrategyLegState(PositionSide.SHORT)
         self._bucket = {
@@ -324,7 +366,6 @@ class IntegratedPaperHedgeApplication:
         self._last_funding_event_time: datetime | None = None
         self._paper_fee_rate = self.paper_config.taker_fee_rate
         self._bar_volume = self.paper_config.bar_volume
-        self._new_risk_enabled_provider: Callable[[], bool] = lambda: True
         self.matcher = ConservativeMatcher(
             MatchConfig(
                 maker_fee_rate=self.paper_config.maker_fee_rate,
@@ -402,20 +443,107 @@ class IntegratedPaperHedgeApplication:
         return self.execution
 
     def bind_new_risk_provider(self, provider: Callable[[], bool]) -> None:
-        """Bind the control-plane new-risk switch to Paper order submission."""
+        """Add a control-plane gate to Paper order submission.
 
+        The runtime composes the built-in Dry-run operations gate with external
+        control-plane providers instead of overwriting either authority.  Providers are now composed with logical AND so official
+        bot state, the Hedge control plane, readiness and the production-equivalent loop
+        must all agree before new risk is allowed.
+        """
+
+        self.add_new_risk_provider(provider)
+
+    def add_new_risk_provider(self, provider: Callable[[], bool]) -> None:
         if not callable(provider):
             raise TypeError("new-risk provider must be callable")
-        self._new_risk_enabled_provider = provider
+        self._new_risk_enabled_providers.append(provider)
+
+    @property
+    def new_risk_provider_count(self) -> int:
+        return len(self._new_risk_enabled_providers)
+
+    def bind_order_admission_provider(self, provider: Callable[[object], object]) -> None:
+        """Add a side-aware admission provider for every planned submission."""
+
+        self._order_admission_policy.add(provider)
+
+    @property
+    def order_admission_provider_count(self) -> int:
+        return self._order_admission_policy.provider_count
+
+    def bind_order_transformer(self, transformer: Callable[[object], object]) -> None:
+        if not callable(transformer):
+            raise TypeError("order transformer must be callable")
+        self._intent_transformers.append(transformer)
+
+    def add_fill_observer(
+        self, observer: Callable[[object, object, object, object], None]
+    ) -> None:
+        if not callable(observer):
+            raise TypeError("fill observer must be callable")
+        self._fill_observers.append(observer)
+
+    def _transform_planning_intents(self, planning: PlanningResult) -> PlanningResult:
+        if not self._intent_transformers:
+            return planning
+        transformed: list[PlannerOrderIntent] = []
+        for item in planning.submit_orders:
+            current: object = item
+            for transformer in tuple(self._intent_transformers):
+                current = transformer(current)
+            if not isinstance(current, PlannerOrderIntent):
+                raise TypeError("Paper order transformer must return PlannerOrderIntent")
+            transformed.append(current)
+        return replace(planning, submit_orders=tuple(transformed))
+
+    def _notify_fill_observers(
+        self, planner_intent: object, price: object, quantity: object, at: object
+    ) -> None:
+        for observer in tuple(self._fill_observers):
+            try:
+                observer(planner_intent, price, quantity, at)
+            except Exception:
+                # Execution/fill authority must never be rolled back by notifications.
+                continue
 
     def new_risk_enabled(self) -> bool:
-        try:
-            value = self._new_risk_enabled_provider()
-        except Exception as exc:
-            raise RuntimeError("Paper new-risk provider failed closed") from exc
-        if not isinstance(value, bool):
-            raise TypeError("Paper new-risk provider must return bool")
-        return value
+        for provider in tuple(self._new_risk_enabled_providers):
+            try:
+                value = provider()
+            except Exception as exc:
+                raise RuntimeError("Paper new-risk provider failed closed") from exc
+            if not isinstance(value, bool):
+                raise TypeError("Paper new-risk provider must return bool")
+            if not value:
+                return False
+        return True
+
+    def cancel_managed_orders(self) -> tuple[tuple[ExecutionResult, ...], tuple[str, ...]]:
+        """Cancel every Paper order owned by the Hedge planner.
+
+        This is the Hedge equivalent of ``cancel_open_orders_on_exit``.  It never
+        touches external exchange orders because the mapping contains only order IDs
+        created by this Paper application's planner/execution graph.
+        """
+
+        canceled: list[ExecutionResult] = []
+        errors: list[str] = []
+        with self._lock:
+            execution = self._execution()
+            for planner_id, client_id in tuple(self._planner_order_to_client.items()):
+                terminal = False
+                try:
+                    canceled.append(execution.engine.cancel(client_id))
+                    terminal = True
+                except (KeyError, ValueError):
+                    # Already terminal or absent is idempotent success for shutdown.
+                    terminal = True
+                except Exception as exc:
+                    errors.append(f"{client_id}:{type(exc).__name__}:{exc}")
+                if terminal:
+                    self._simulation_intents.pop(client_id, None)
+                    self._planner_order_to_client.pop(planner_id, None)
+        return tuple(canceled), tuple(errors)
 
     @property
     def last_funding_event_time(self) -> datetime | None:
@@ -1184,7 +1312,7 @@ class IntegratedPaperHedgeApplication:
             bucket = PositionBucket(fill.bucket)
             bucket_state = self._bucket[PositionSide(fill.position_side)]
             if action in {ExecutionAction.OPEN, ExecutionAction.INCREASE}:
-                bucket_state.increase(bucket, fill.quantity, fill.price)
+                bucket_state.increase(bucket, fill.quantity, fill.price, fill.event_time)
             else:
                 bucket_state.reduce(bucket, fill.quantity)
             if callable(remember):
@@ -1249,8 +1377,18 @@ class IntegratedPaperHedgeApplication:
             self._bucket[side] = _BucketState(
                 core_quantity=Decimal(str(row.get("core_quantity", "0"))),
                 core_average=Decimal(str(row.get("core_average", "0"))),
+                core_opened_at=(
+                    None
+                    if row.get("core_opened_at") in (None, "")
+                    else datetime.fromisoformat(str(row["core_opened_at"]))
+                ),
                 tactical_quantity=Decimal(str(row.get("tactical_quantity", "0"))),
                 tactical_average=Decimal(str(row.get("tactical_average", "0"))),
+                tactical_opened_at=(
+                    None
+                    if row.get("tactical_opened_at") in (None, "")
+                    else datetime.fromisoformat(str(row["tactical_opened_at"]))
+                ),
             )
         self.long_state = self._decode_leg_state(payload.get("long_state"), PositionSide.LONG)
         self.short_state = self._decode_leg_state(payload.get("short_state"), PositionSide.SHORT)
@@ -1299,8 +1437,16 @@ class IntegratedPaperHedgeApplication:
                 side.value: {
                     "core_quantity": str(state.core_quantity),
                     "core_average": str(state.core_average),
+                    "core_opened_at": (
+                        None if state.core_opened_at is None else state.core_opened_at.isoformat()
+                    ),
                     "tactical_quantity": str(state.tactical_quantity),
                     "tactical_average": str(state.tactical_average),
+                    "tactical_opened_at": (
+                        None
+                        if state.tactical_opened_at is None
+                        else state.tactical_opened_at.isoformat()
+                    ),
                 }
                 for side, state in self._bucket.items()
             },
@@ -1566,6 +1712,11 @@ class IntegratedPaperHedgeApplication:
             except (KeyError, ValueError):
                 continue
             fills.append(result)
+            planner_for_callback = self._simulation_intents.get(fill.order_id)
+            if planner_for_callback is not None:
+                self._notify_fill_observers(
+                    planner_for_callback, fill.price, fill.quantity, fill.timestamp
+                )
             fee_event = fee_account_event(
                 fill_event_id=fill.event_id,
                 timestamp=fill.timestamp,
@@ -1577,7 +1728,7 @@ class IntegratedPaperHedgeApplication:
                 account_events.append(fee_event)
             state = self._bucket[fill.position_side]
             if fill.action in {IntentAction.OPEN, IntentAction.INCREASE}:
-                state.increase(fill.bucket, fill.quantity, fill.price)
+                state.increase(fill.bucket, fill.quantity, fill.price, fill.timestamp)
             else:
                 state.reduce(fill.bucket, fill.quantity)
             if result.order.lifecycle.filled_quantity >= result.order.approved_quantity:
@@ -1698,12 +1849,23 @@ class IntegratedPaperHedgeApplication:
                     target_net_quantity=effective_target,
                 )
                 planning = self.planner.plan(context)
+                planning, _native_exit_diagnostics = self._exit_overlay.apply(
+                    planning, app=self, market=market
+                )
+                planning = self._transform_planning_intents(planning)
                 planning, _blocked_new_risk = apply_new_risk_gate(
                     planning,
                     enabled=self.new_risk_enabled() and directive.allow_new_risk,
                     current_long_state=self.long_state,
                     current_short_state=self.short_state,
                 )
+                planning, native_admission_blocks = apply_planning_admission_gate(
+                    planning,
+                    evaluate=self._order_admission_policy.evaluate,
+                    current_long_state=self.long_state,
+                    current_short_state=self.short_state,
+                )
+                _blocked_new_risk += len(native_admission_blocks)
                 for planner_order_id in planning.cancel_order_ids:
                     client_id = self._planner_order_to_client.pop(planner_order_id, None)
                     if client_id is None:
@@ -1762,12 +1924,19 @@ class IntegratedPaperHedgeApplication:
                                 None,
                             )
                             if planner_intent is not None:
+                                self._notify_fill_observers(
+                                    planner_intent,
+                                    fill_price,
+                                    result.order.approved_quantity,
+                                    bar.timestamp,
+                                )
                                 state = self._bucket[planner_intent.position_side]
                                 if planner_intent.action in {IntentAction.OPEN, IntentAction.INCREASE}:
                                     state.increase(
                                         planner_intent.bucket,
                                         result.order.approved_quantity,
                                         fill_price,
+                                        bar.timestamp,
                                     )
                                 else:
                                     state.reduce(

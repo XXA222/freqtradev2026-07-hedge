@@ -349,16 +349,16 @@ class TestnetRunJournal:
             if row is not None:
                 record = self._record(row)
                 if record.request_hash != request_hash or record.account_id != account_id:
-                    raise RuntimeError("R3.7 run_id is already bound to different input or account")
+                    raise RuntimeError("testnet E2E run_id is already bound to different input or account")
                 if record.actor != actor:
                     if record.actor == "" and record.state is TestnetScenarioState.COMPLETED:
                         connection.commit()
                         return record, True
                     if record.actor == "":
                         raise RuntimeError(
-                            "R3.7 legacy active run has no actor binding; manual recovery is required"
+                            "testnet E2E active run has no actor binding; manual recovery is required"
                         )
-                    raise RuntimeError("R3.7 run_id is already bound to a different actor")
+                    raise RuntimeError("testnet E2E run_id is already bound to a different actor")
                 connection.commit()
                 return record, True
             connection.execute(
@@ -620,7 +620,7 @@ class TestnetE2EOrchestrator:
             return _report_from_payload(record.report)
         if record.state in {TestnetScenarioState.FAILED, TestnetScenarioState.RECOVERY_REQUIRED}:
             raise RuntimeError(
-                f"R3.7 run is terminal {record.state.value}; inspect evidence and use a new run_id"
+                f"testnet E2E run is terminal {record.state.value}; inspect evidence and use a new run_id"
             )
 
         started = record.created_at
@@ -1041,7 +1041,7 @@ def _seed_store(
         average_price=(intent.limit_price if state is OrderState.FILLED else None),
         version=1,
         updated_at=datetime.now(UTC),
-        reason="R3.7_RESTART_RECOVERY",
+        reason="TESTNET_RESTART_RECOVERY",
     )
     store.put(
         ExecutionOrder(

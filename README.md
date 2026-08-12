@@ -235,3 +235,7 @@ To run this bot we recommend you a cloud instance with a minimum of:
 - [TA-Lib](https://ta-lib.github.io/ta-lib-python/)
 - [virtualenv](https://virtualenv.pypa.io/en/stable/installation.html) (Recommended)
 - [Docker](https://www.docker.com/products/docker) (Recommended)
+
+## Freqtrade-Hedge Clean Mainline
+
+This source tree includes the locally maintained Hedge extension as a single current mainline. See `CLEAN-MAINLINE-ARCHITECTURE.md` and `docs/hedge-clean-mainline.md` for its local `.venv` runtime, safety model and validation workflow. Historical release implementations are intentionally kept outside this source tree.

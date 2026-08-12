@@ -15,7 +15,7 @@ from typing import Callable, Protocol
 from .backup import BackupEvidence, SQLiteBackupManager
 from .config import HedgeDeploymentConfig
 from .events import JsonlEventWriter
-from .readiness import DeploymentReadiness, validate_r37_report
+from .readiness import DeploymentReadiness, validate_security_readiness_report
 from .single_instance import SingleInstanceLock
 from .state import RuntimePhase, RuntimeState, RuntimeStateStore
 
@@ -61,7 +61,7 @@ class HedgeProcessSupervisor:
 
     def run(self) -> SupervisorResult:
         with self.lock:
-            readiness = validate_r37_report(self.config)
+            readiness = validate_security_readiness_report(self.config)
             backup = self._backup_database()
             identity = self.lock.identity
             assert identity is not None
@@ -82,7 +82,7 @@ class HedgeProcessSupervisor:
             self.events.write(
                 "SUPERVISOR_PREFLIGHT_PASS",
                 readiness=readiness.status,
-                r37_report_sha256=readiness.report_sha256,
+                security_readiness_report_sha256=readiness.report_sha256,
                 mode=self.config.mode.value,
                 symbols=self.config.symbols,
             )

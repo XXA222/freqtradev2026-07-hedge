@@ -24,7 +24,7 @@ class SqlExecutionAuditLog:
         *,
         account_id: str,
         exchange: str = "binance",
-        actor: str = "r5-authoritative-execution",
+        actor: str = "hedge-authoritative-execution",
     ) -> None:
         if not callable(session_factory):
             raise TypeError("session_factory must be callable")

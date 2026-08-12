@@ -10,7 +10,7 @@ from freqtrade.exceptions import OperationalException
 from freqtrade.hedge.integration.production_main_loop import HedgeExecutionMode
 from freqtrade.hedge.symbols import raw_symbol
 
-_FIXED_PERPETUALS = frozenset({"BTCUSDT", "ETHUSDT"})
+_SUPPORTED_SETTLE_SUFFIXES = ("USDT", "USDC", "FDUSD")
 _ALLOWED_KEYS = frozenset(
     {
         "enabled",
@@ -28,6 +28,14 @@ _ALLOWED_KEYS = frozenset(
         "authoritative_execution_enabled",
     }
 )
+
+
+def _valid_perpetual_symbol(value: str) -> bool:
+    return (
+        value.isascii()
+        and value.isalnum()
+        and any(value.endswith(suffix) and len(value) > len(suffix) for suffix in _SUPPORTED_SETTLE_SUFFIXES)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,9 +70,9 @@ class ProductionMainLoopConfig:
                 "HEDGE_PRODUCTION_ARMED requires authoritative_execution_enabled=true."
             )
         symbols = tuple(dict.fromkeys(raw_symbol(item) for item in self.allowed_symbols))
-        if not symbols or not set(symbols).issubset(_FIXED_PERPETUALS):
+        if not symbols or not all(_valid_perpetual_symbol(item) for item in symbols):
             raise OperationalException(
-                "hedge.main_loop.allowed_symbols may contain only BTCUSDT and ETHUSDT."
+                "hedge.main_loop.allowed_symbols must contain valid USDT/USDC/FDUSD perpetuals."
             )
         backend = str(self.state_backend).strip().lower()
         if backend not in {"sql", "json", "memory"}:

@@ -115,3 +115,6 @@ target/
 !config_examples/config_freqai.example.json
 
 docker-compose-*.yml
+
+# Local verification output
+artifacts/

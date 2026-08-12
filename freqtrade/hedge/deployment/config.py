@@ -58,7 +58,7 @@ class HedgeDeploymentConfig:
     heartbeat_stale_seconds: float
     graceful_shutdown_seconds: float
     restart_policy: RestartPolicy
-    r37_report: Path
+    security_readiness_report: Path
 
     @classmethod
     def from_file(cls, path: Path) -> "HedgeDeploymentConfig":
@@ -90,7 +90,7 @@ class HedgeDeploymentConfig:
             "heartbeat_stale_seconds",
             "graceful_shutdown_seconds",
             "restart_policy",
-            "r37_report",
+            "security_readiness_report",
         }
         unknown = sorted(set(payload) - allowed_keys)
         if unknown:
@@ -124,12 +124,8 @@ class HedgeDeploymentConfig:
         python_raw = payload.get("python_executable")
         if isinstance(python_raw, str) and python_raw.strip().upper() == "AUTO":
             candidates = (
-                project_root / "freqtrade-hedge" / "Scripts" / "python.exe",
                 project_root / ".venv" / "Scripts" / "python.exe",
-                project_root / "venv" / "Scripts" / "python.exe",
-                project_root / "freqtrade-hedge" / "bin" / "python",
                 project_root / ".venv" / "bin" / "python",
-                project_root / "venv" / "bin" / "python",
             )
             python_executable = next((candidate.resolve() for candidate in candidates if candidate.is_file()), None)
             if python_executable is None:
@@ -140,22 +136,26 @@ class HedgeDeploymentConfig:
             if not python_executable.is_file():
                 raise DeploymentConfigError(f"python_executable does not exist: {python_executable}")
 
-        r37_raw = payload.get("r37_report")
-        if isinstance(r37_raw, str) and r37_raw.strip().upper() == "AUTO":
-            report_root = project_root / "artifacts" / "hedge_r37_security_hardening"
+        readiness_raw = payload.get("security_readiness_report")
+        if isinstance(readiness_raw, str) and readiness_raw.strip().upper() == "AUTO":
+            report_root = project_root / "user_data" / "audit" / "security-readiness"
             candidates = sorted(
-                report_root.glob("**/R3.7-SECURITY-DEPLOYMENT-HARDENING-READINESS.json"),
+                report_root.glob("**/SECURITY-DEPLOYMENT-READINESS.json"),
                 key=lambda candidate: candidate.stat().st_mtime_ns,
                 reverse=True,
             )
-            r37_report = candidates[0].resolve() if candidates else None
-            if r37_report is None:
-                raise DeploymentConfigError("r37_report=AUTO did not find a valid R3.7 report")
+            security_readiness_report = candidates[0].resolve() if candidates else None
+            if security_readiness_report is None:
+                raise DeploymentConfigError(
+                    "security_readiness_report=AUTO did not find a current readiness report"
+                )
         else:
-            r37_report = resolve_path("r37_report")
-            assert r37_report is not None
-            if not r37_report.is_file():
-                raise DeploymentConfigError(f"r37_report does not exist: {r37_report}")
+            security_readiness_report = resolve_path("security_readiness_report")
+            assert security_readiness_report is not None
+            if not security_readiness_report.is_file():
+                raise DeploymentConfigError(
+                    f"security_readiness_report does not exist: {security_readiness_report}"
+                )
 
         try:
             mode = DeploymentMode(str(payload.get("mode", "")).strip())
@@ -224,9 +224,9 @@ class HedgeDeploymentConfig:
                 raise DeploymentConfigError(f"{name} must remain under project_root") from exc
             return resolved
 
-        state_dir = under_project("state_dir", "artifacts/hedge_runtime")
-        log_dir = under_project("log_dir", "artifacts/hedge_runtime/logs")
-        backup_dir = under_project("backup_dir", "artifacts/hedge_runtime/backups")
+        state_dir = under_project("state_dir", "user_data/hedge/runtime")
+        log_dir = under_project("log_dir", "user_data/hedge/runtime/logs")
+        backup_dir = under_project("backup_dir", "user_data/hedge/runtime/backups")
 
         database_path = resolve_path("database_path", required=False)
         if database_path is not None:
@@ -250,7 +250,7 @@ class HedgeDeploymentConfig:
             heartbeat_stale_seconds=heartbeat_stale,
             graceful_shutdown_seconds=graceful_shutdown,
             restart_policy=restart_policy,
-            r37_report=r37_report,
+            security_readiness_report=security_readiness_report,
         )
 
     def child_command(self) -> tuple[str, ...]:

@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import pytest
 
+from freqtrade.hedge.exchange.base import stable_fingerprint, to_primitive
 from freqtrade.hedge.exchange.binance_normalizer import (
     finite_decimal,
     normalize_account_snapshot,
@@ -34,7 +35,7 @@ def test_explicit_position_side_must_match_signed_amount():
 
     payload.update(positionSide="SHORT", positionAmt="-2")
     fact = normalize_position(payload, account_id="acct")
-    assert fact.quantity == Decimal("2")
+    assert fact.quantity == Decimal(2)
 
 
 def test_string_false_is_not_treated_as_true_for_reduce_only_and_buyer():
@@ -117,10 +118,121 @@ def test_position_requires_explicit_margin_mode_source():
         normalize_position(payload, account_id="acct")
 
 
+
+def test_v3_position_uses_symbol_configuration_without_mutating_raw():
+    payload = {
+        "symbol": "ETHUSDT",
+        "positionSide": "LONG",
+        "positionAmt": "1",
+        "entryPrice": "3000",
+        "markPrice": "3010",
+        "unRealizedProfit": "10",
+        "liquidationPrice": "0",
+        "isolatedMargin": "0",
+        "isolatedWallet": "0",
+        "updateTime": 1,
+    }
+    configurations = [
+        {
+            "symbol": "ETHUSDT",
+            "marginType": "CROSSED",
+            "leverage": 7,
+        }
+    ]
+
+    fact = normalize_positions(
+        [payload],
+        account_id="acct",
+        symbol_configurations=configurations,
+    )[0]
+
+    assert fact.margin_mode == "cross"
+    assert fact.leverage == 7
+    assert fact.raw is payload
+    assert "marginType" not in fact.raw
+    assert "leverage" not in fact.raw
+
+
+def test_configuration_ignores_unmanaged_delivery_contract_rows():
+    configuration = normalize_configuration(
+        account_id="acct",
+        dual_side_payload={"dualSidePosition": True},
+        symbol_configurations=[
+            {
+                "symbol": "ETHUSDT_261225",
+                "marginType": "CROSSED",
+                "leverage": 4,
+            },
+            {
+                "symbol": "ETHUSDT",
+                "marginType": "CROSSED",
+                "leverage": 7,
+            },
+        ],
+        managed_symbols=["ETHUSDT"],
+    )
+
+    assert configuration.active_margin_modes == ("cross",)
+    assert configuration.leverage_by_symbol_side == {
+        "ETHUSDT:LONG": 7,
+        "ETHUSDT:SHORT": 7,
+    }
+    raw_rows = configuration.raw["symbol_configurations"]
+    assert tuple(row["symbol"] for row in raw_rows) == ("ETHUSDT",)
+
+
+def test_v3_position_ignores_unmanaged_delivery_symbol_configuration():
+    payload = {
+        "symbol": "ETHUSDT",
+        "positionSide": "LONG",
+        "positionAmt": "1",
+        "entryPrice": "3000",
+        "markPrice": "3010",
+        "unRealizedProfit": "10",
+        "liquidationPrice": "0",
+        "isolatedMargin": "0",
+        "isolatedWallet": "0",
+        "updateTime": 1,
+    }
+    configurations = [
+        {
+            "symbol": "ETHUSDT_261225",
+            "marginType": "CROSSED",
+            "leverage": 4,
+        },
+        {
+            "symbol": "ETHUSDT",
+            "marginType": "CROSSED",
+            "leverage": 7,
+        },
+    ]
+
+    fact = normalize_positions(
+        [payload],
+        account_id="acct",
+        symbol_configurations=configurations,
+    )[0]
+
+    assert fact.symbol == "ETHUSDT"
+    assert fact.margin_mode == "cross"
+    assert fact.leverage == 7
+
+
+def test_zero_delivery_position_row_is_ignored_but_open_exposure_fails_closed():
+    dormant = {
+        "symbol": "ETHUSDT_261225",
+        "positionSide": "LONG",
+        "positionAmt": "0",
+    }
+    assert normalize_positions([dormant], account_id="acct") == ()
+
+    active = dict(dormant, positionAmt="1")
+    with pytest.raises(BinanceDataError, match="non-perpetual position exposure"):
+        normalize_positions([active], account_id="acct")
+
 def test_observed_time_rejects_naive_datetime():
     with pytest.raises(BinanceDataError, match="explicit timezone"):
-        observed_time(datetime(2026, 7, 26, 12, 0, 0))
-from freqtrade.hedge.exchange.base import stable_fingerprint, to_primitive
+        observed_time(datetime(2026, 7, 26, 12, 0, 0))  # noqa: DTZ001
 
 
 def test_stable_fingerprint_is_deterministic_for_sets():

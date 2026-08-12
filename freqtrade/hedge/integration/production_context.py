@@ -22,7 +22,7 @@ from freqtrade.hedge.planning.context import (
     WalletSnapshot,
 )
 from freqtrade.hedge.symbols import raw_symbol
-from freqtrade.hedge.r55.strategy import (
+from freqtrade.hedge.strategies.contract import (
     StrategyDirective,
     planner_config_for_directive,
     target_net_quantity_for_directive,

@@ -1,19 +1,9 @@
 .git
-.gitignore
 .devcontainer/
 docs/
 dist/
 site/
-.coveragerc
-.eggs
-.github
-.pylintrc
-.travis.yml
-CONTRIBUTING.md
-freqtrade.service
-freqtrade.service.watchdog
-freqtrade.egg-info
-freqtrade-hedge/
+.eggs/
 .venv/
 venv/
 build/
@@ -47,6 +37,4 @@ __pycache__/
 *.pfx
 *.p12
 
-# The R5.6.1 container entrypoint is deliberately included.
-docker/*
-!docker/entrypoint-hedge-r561.sh
+freqtrade.egg-info/

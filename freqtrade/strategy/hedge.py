@@ -1,8 +1,8 @@
-"""Strategy-side validation helpers for the R5.5 Hedge contract."""
+"""Strategy-side validation helpers for the clean-mainline Hedge contract."""
 from __future__ import annotations
 from typing import Iterable
 
-from freqtrade.hedge.r55.strategy import HEDGE_SIGNAL_COLUMNS
+from freqtrade.hedge.strategies.contract import HEDGE_SIGNAL_COLUMNS
 
 class HedgeStrategyMixin:
     """Validate Hedge columns without coupling a strategy to the execution engine."""

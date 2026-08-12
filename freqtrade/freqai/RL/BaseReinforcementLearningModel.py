@@ -382,7 +382,11 @@ class BaseReinforcementLearningModel(IFreqaiModel):
         """
         exists = Path(dk.data_path / f"{dk.model_filename}_model").is_file()
         if exists:
-            model = self.MODELCLASS.load(dk.data_path / f"{dk.model_filename}_model")
+            device = str(self.freqai_info.get("model_training_parameters", {}).get("device", "auto"))
+            model = self.MODELCLASS.load(
+                dk.data_path / f"{dk.model_filename}_model",
+                device=device,
+            )
         else:
             logger.info("No model file on disk to continue learning from.")
 

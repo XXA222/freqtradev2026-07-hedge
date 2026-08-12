@@ -1,4 +1,4 @@
-"""Optional loopback-only R5.5 dashboard API and embedded UI."""
+"""Optional loopback-only Hedge dashboard API and embedded UI."""
 from __future__ import annotations
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -75,7 +75,7 @@ def create_hedge_dashboard_router(*,query:HedgeDashboardQuery,principal_dependen
     def cycles(limit:int=200,_:HedgePrincipal=Depends(viewer)):return query.cycles(max(1,min(limit,2000)))
     @router.get("/hedge/dashboard/strategy-contract")
     def strategy_contract(_:HedgePrincipal=Depends(viewer)):
-        from freqtrade.hedge.r55.strategy import StrategyContract
+        from freqtrade.hedge.strategies.contract import StrategyContract
         return asdict(StrategyContract())
     @router.post("/hedge/dry-run/control",response_model=DashboardControlSchema)
     def control(request:DashboardControlRequest,principal:HedgePrincipal=Depends(operator)):

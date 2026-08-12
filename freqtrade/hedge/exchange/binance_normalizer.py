@@ -143,9 +143,14 @@ def _normalize_symbol_configuration_row(
     *,
     expected: set[str],
 ) -> tuple[str, str, int] | None:
-    symbol = normalize_symbol(item.get("symbol"))
-    if symbol not in expected:
+    # /fapi/v1/symbolConfig is account-wide when no symbol filter is supplied and
+    # may include valid USD-M delivery contracts such as ETHUSDT_261225.  This
+    # runtime manages perpetual symbols only, so filter unrelated exchange symbols
+    # before applying the strict perpetual/canonical symbol codec.
+    raw_symbol = str(item.get("symbol") or "").strip().upper()
+    if raw_symbol not in expected:
         return None
+    symbol = normalize_symbol(raw_symbol)
     raw_margin = str(item.get("marginType") or "").strip().lower()
     if raw_margin in {"cross", "crossed"}:
         margin_mode = "cross"
@@ -297,7 +302,7 @@ def normalize_account_update_balance(
         previous.available_balance if previous is not None else cross_wallet_balance
     )
     unrealized_pnl = (
-        previous.unrealized_pnl if previous is not None else Decimal("0")
+        previous.unrealized_pnl if previous is not None else Decimal(0)
     )
     return BalanceFact(
         account_id=account_id,
@@ -348,6 +353,8 @@ def normalize_position(
     account_id: str,
     observed_at: datetime | None = None,
     source: str = "BINANCE_REST",
+    margin_mode_override: str | None = None,
+    leverage_override: int | None = None,
 ) -> PositionFact:
     symbol = normalize_symbol(payload.get("symbol") or payload.get("s"))
     side = normalize_position_side(payload.get("positionSide") or payload.get("ps"))
@@ -359,7 +366,16 @@ def normalize_position(
     if side == "SHORT" and raw_amount > 0:
         raise BinanceDataError(f"SHORT position has positive signed amount for {symbol}")
     quantity = abs(raw_amount)
-    margin_mode = _normalize_margin_mode(payload, symbol=symbol)
+    margin_mode = (
+        margin_mode_override
+        if margin_mode_override is not None
+        else _normalize_margin_mode(payload, symbol=symbol)
+    )
+    leverage_value = (
+        leverage_override
+        if leverage_override is not None
+        else payload.get("leverage")
+    )
     liquidation = _optional_liquidation_price(payload, symbol=symbol)
     return PositionFact(
         account_id=account_id,
@@ -378,7 +394,7 @@ def normalize_position(
         ),
         liquidation_price=liquidation,
         leverage=nonnegative_int(
-            payload.get("leverage"), field=f"{symbol}.leverage", default=0
+            leverage_value, field=f"{symbol}.leverage", default=0
         ),
         margin_mode=margin_mode,
         update_time_ms=nonnegative_int(
@@ -397,12 +413,70 @@ def normalize_positions(
     account_id: str,
     observed_at: datetime | None = None,
     source: str = "BINANCE_REST",
+    symbol_configurations: Sequence[Mapping[str, Any]] | None = None,
 ) -> tuple[PositionFact, ...]:
+    normalized_rows: list[tuple[Mapping[str, Any], str]] = []
+    expected: set[str] = set()
+    for index, item in enumerate(payload):
+        if not isinstance(item, Mapping):
+            raise BinanceDataError(f"positionRisk[{index}] must be an object")
+        raw_symbol = str(item.get("symbol") or item.get("s") or "").strip().upper()
+        try:
+            symbol = normalize_symbol(raw_symbol)
+        except BinanceDataError as exc:
+            # V3 can expose account-wide contract rows.  Dormant delivery-contract
+            # rows are outside the perpetual runtime universe and are harmless, but
+            # an actual position in an unsupported contract must halt acceptance.
+            raw_amount = finite_decimal(
+                item.get("positionAmt", item.get("pa", "0")),
+                field=f"{raw_symbol or 'UNKNOWN'}.positionAmt",
+            )
+            if raw_amount != 0:
+                raise BinanceDataError(
+                    "Unsupported non-perpetual position exposure: "
+                    f"{raw_symbol or '<missing>'}"
+                ) from exc
+            continue
+        normalized_rows.append((item, symbol))
+        expected.add(symbol)
+
+    configuration_by_symbol: dict[str, tuple[str, int]] = {}
+    if symbol_configurations is not None:
+        for index, item in enumerate(symbol_configurations):
+            if not isinstance(item, Mapping):
+                raise BinanceDataError(f"symbolConfig[{index}] must be an object")
+            normalized = _normalize_symbol_configuration_row(item, expected=expected)
+            if normalized is None:
+                continue
+            symbol, margin_mode, leverage = normalized
+            if symbol in configuration_by_symbol:
+                raise BinanceDataError(f"duplicate symbol configuration row: {symbol}")
+            configuration_by_symbol[symbol] = (margin_mode, leverage)
+
     result: list[PositionFact] = []
     seen: set[tuple[str, str]] = set()
-    for item in payload:
+    for item, symbol in normalized_rows:
+        fallback = configuration_by_symbol.get(symbol)
+        margin_source_missing = (
+            item.get("marginType", item.get("mt")) in (None, "")
+            and "isolated" not in item
+        )
+        leverage_source_missing = item.get("leverage") in (None, "", 0, "0")
         fact = normalize_position(
-            item, account_id=account_id, observed_at=observed_at, source=source
+            item,
+            account_id=account_id,
+            observed_at=observed_at,
+            source=source,
+            margin_mode_override=(
+                fallback[0]
+                if fallback is not None and margin_source_missing
+                else None
+            ),
+            leverage_override=(
+                fallback[1]
+                if fallback is not None and leverage_source_missing
+                else None
+            ),
         )
         key = (fact.symbol, fact.position_side)
         if key in seen:

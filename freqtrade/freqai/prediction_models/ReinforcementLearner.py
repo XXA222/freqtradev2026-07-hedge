@@ -94,7 +94,8 @@ class ReinforcementLearner(BaseReinforcementLearningModel):
 
         if Path(dk.data_path / "best_model.zip").is_file():
             logger.info("Callback found a best model.")
-            best_model = self.MODELCLASS.load(dk.data_path / "best_model")
+            device = str(self.freqai_info.get("model_training_parameters", {}).get("device", "auto"))
+            best_model = self.MODELCLASS.load(dk.data_path / "best_model", device=device)
             return best_model
 
         logger.info("Couldn't find best model, using final model instead.")

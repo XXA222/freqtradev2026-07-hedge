@@ -22,11 +22,11 @@ class DeploymentReadiness:
     checks: tuple[tuple[str, str], ...]
 
 
-def validate_r37_report(config: HedgeDeploymentConfig) -> DeploymentReadiness:
-    raw = config.r37_report.read_bytes()
+def validate_security_readiness_report(config: HedgeDeploymentConfig) -> DeploymentReadiness:
+    raw = config.security_readiness_report.read_bytes()
     payload: Any = json.loads(raw)
     if not isinstance(payload, Mapping):
-        raise DeploymentReadinessError("R3.7 report must be a JSON object")
+        raise DeploymentReadinessError("security readiness report must be a JSON object")
     checks: dict[str, str] = {
         "status": "PASS" if payload.get("status") == "SECURITY_AND_DEPLOYMENT_HARDENING_COMPLETE_MAINNET_LOCKED" else "FAIL",
         "complete": "PASS" if payload.get("security_and_deployment_hardening_complete") is True else "FAIL",
@@ -35,7 +35,7 @@ def validate_r37_report(config: HedgeDeploymentConfig) -> DeploymentReadiness:
         "installer_network_none": "PASS" if payload.get("installer_network_access") == "NONE" else "FAIL",
     }
     if any(value != "PASS" for value in checks.values()):
-        raise DeploymentReadinessError(f"R3.7 prerequisite failed: {checks}")
+        raise DeploymentReadinessError(f"security readiness prerequisite failed: {checks}")
     if config.mode is DeploymentMode.PRODUCTION_LOCKED:
         checks["production_mode_locked"] = "PASS"
     elif config.mode is DeploymentMode.PAPER:

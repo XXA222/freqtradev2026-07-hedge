@@ -68,6 +68,15 @@ class PyTorchModelTrainer(PyTorchTrainerInterface):
         self.best_val_loss: float = float("inf")
         self.patience_counter: int = 0
 
+    def set_device(self, device: str) -> None:
+        """Move model and optimizer state to a new training device."""
+        self.device = device
+        self.model.to(device)
+        for state in self.optimizer.state.values():
+            for key, value in tuple(state.items()):
+                if torch.is_tensor(value):
+                    state[key] = value.to(device)
+
     def fit(self, data_dictionary: dict[str, pd.DataFrame], splits: list[str]):
         """
         :param data_dictionary: the dictionary constructed by DataHandler to hold

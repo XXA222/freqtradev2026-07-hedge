@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 import signal
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 from freqtrade.enums import RunMode
 from freqtrade.exceptions import OperationalException
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ def start_hedge_backtesting(args: dict[str, Any]) -> None:
         export_path=export_path,
         export_events=bool(args.get("hedge_export_events", False)),
     )
+    native_artifact = getattr(run, "native_artifact", None)
     summary = {
         "status": "PASS",
         "mode": "hedge-backtesting",
@@ -55,13 +57,15 @@ def start_hedge_backtesting(args: dict[str, Any]) -> None:
         "market_rule_version": run.market_rule_version,
         "report": {key: str(value) for key, value in run.result.report.items()},
         "result_file": str(run.export_path),
-        "artifact_sha256": getattr(run, "artifact_sha256", ""),
-        "result_fingerprint": getattr(run, "result_fingerprint", ""),
+        "artifact_sha256": str(getattr(run, "artifact_sha256", "")),
+        "result_fingerprint": str(getattr(run, "result_fingerprint", "")),
+        "native_schema": str(getattr(native_artifact, "schema", "")),
+        "freqtrade_projection_embedded": native_artifact is not None,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
 
 
-def _validate_paper_runtime_config(config: dict[str, Any]) -> None:
+def _validate_paper_runtime_config(config: dict[str, Any]) -> None:  # noqa: C901
     from freqtrade.hedge.config import validate_hedge_config
     from freqtrade.hedge.errors import HedgeDataError
     from freqtrade.hedge.paper_config import PaperFundingSource, PaperOhlcvSource
@@ -89,7 +93,10 @@ def _validate_paper_runtime_config(config: dict[str, Any]) -> None:
             "hedge managed_pair must be present in exchange.pair_whitelist"
         )
     wallet = config.get("dry_run_wallet")
-    if wallet is not None and _config_decimal(wallet, field_name="dry_run_wallet") != paper.initial_balance:
+    if wallet is not None and _config_decimal(
+        wallet,
+        field_name="dry_run_wallet",
+    ) != paper.initial_balance:
         raise OperationalException(
             "dry_run_wallet must equal hedge.paper.initial_balance for deterministic Paper"
         )
@@ -97,7 +104,10 @@ def _validate_paper_runtime_config(config: dict[str, Any]) -> None:
     if target_leverage is None:
         raw_hedge = config.get("hedge", {})
         target_leverage = raw_hedge.get("target_leverage") if isinstance(raw_hedge, dict) else None
-    if target_leverage is not None and _config_decimal(target_leverage, field_name="target_leverage") != paper.leverage:
+    if target_leverage is not None and _config_decimal(
+        target_leverage,
+        field_name="target_leverage",
+    ) != paper.leverage:
         raise OperationalException(
             "target_leverage must equal hedge.paper.leverage"
         )
@@ -152,3 +162,64 @@ def start_hedge_paper(args: dict[str, Any]) -> int:
             logger.info("hedge-paper worker exiting")
             worker.exit()
     return 0
+
+def start_hedge_research_optimize(args: dict[str, Any]) -> None:
+    """Run resumable research optimization while preserving native Hyperopt."""
+
+    from freqtrade.commands.optimize_commands import setup_optimize_configuration
+    from freqtrade.hedge.optimization.freqtrade_adapter import run_freqtrade_hedge_optimization
+
+    config = setup_optimize_configuration(args, RunMode.BACKTEST)
+    hedge = config.setdefault("hedge", {})
+    if not isinstance(hedge, dict):
+        raise OperationalException("hedge must be a JSON object")
+    optimization = hedge.setdefault("optimization", {})
+    if not isinstance(optimization, dict):
+        raise OperationalException("hedge.optimization must be a JSON object")
+    overrides = {
+        "study_name": args.get("hedge_study_name"),
+        "trials": args.get("hedge_trials"),
+        "workers": args.get("hedge_workers"),
+        "sampler": args.get("hedge_sampler"),
+        "output_directory": args.get("hedge_optimization_output"),
+    }
+    for key, value in overrides.items():
+        if value is not None:
+            optimization[key] = value
+    try:
+        run = run_freqtrade_hedge_optimization(config)
+    except ValueError as exc:
+        raise OperationalException(
+            f"invalid Hedge optimization configuration: {exc}"
+        ) from exc
+    status_counts: dict[str, int] = {}
+    for trial in run.result.trials:
+        status_counts[trial.status.value] = status_counts.get(trial.status.value, 0) + 1
+    summary = {
+        "status": "PASS",
+        "mode": "hedge-research-optimize",
+        "study_name": run.result.study_name,
+        "study_fingerprint": run.result.study_fingerprint,
+        "dataset_fingerprint": run.result.dataset_fingerprint,
+        "pair": run.dataset_pair,
+        "timeframe": run.dataset_timeframe,
+        "start": run.dataset_start.isoformat(),
+        "end": run.dataset_end.isoformat(),
+        "bars": run.dataset_bar_count,
+        "trial_count": len(run.result.trials),
+        "resumed_trials": run.result.resumed_trials,
+        "status_counts": status_counts,
+        "best_trial_id": run.result.best_trial_id,
+        "pareto_trial_ids": list(run.result.pareto_trial_ids),
+        "summary_json": str(run.artifacts.summary_json),
+        "trials_csv": str(run.artifacts.trials_csv),
+        "pareto_json": str(run.artifacts.pareto_json),
+        "best_parameters_json": (
+            None
+            if run.artifacts.best_parameters_json is None
+            else str(run.artifacts.best_parameters_json)
+        ),
+        "manifest_json": str(run.artifacts.manifest_json),
+    }
+    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+

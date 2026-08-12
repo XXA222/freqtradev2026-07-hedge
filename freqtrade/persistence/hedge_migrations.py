@@ -2428,20 +2428,20 @@ def _step_verify_r2_execution_authority(engine: Engine) -> dict[str, Any]:
 
 
 
-def _step_create_r5_authority_tables(engine: Engine) -> dict[str, Any]:
+def _step_create_execution_authority_tables(engine: Engine) -> dict[str, Any]:
     from freqtrade.persistence.hedge_models import (
-        R5BudgetReservationRow,
-        R5DailyBudgetRow,
-        R5IncomeEventRow,
+        ExecutionBudgetReservationRow,
+        ExecutionDailyBudgetRow,
+        ExecutionIncomeEventRow,
     )
 
-    tables = (R5DailyBudgetRow, R5BudgetReservationRow, R5IncomeEventRow)
+    tables = (ExecutionDailyBudgetRow, ExecutionBudgetReservationRow, ExecutionIncomeEventRow)
     for model in tables:
         model.__table__.create(engine, checkfirst=True)
     return {"tables": tuple(model.__tablename__ for model in tables)}
 
 
-def _step_verify_r5_authority_tables(engine: Engine) -> dict[str, Any]:
+def _step_verify_execution_authority_tables(engine: Engine) -> dict[str, Any]:
     required_by_table = {
         "hedge_r5_daily_budgets": {
             "account_id", "utc_date", "orders", "turnover", "realized_loss",
@@ -2458,24 +2458,24 @@ def _step_verify_r5_authority_tables(engine: Engine) -> dict[str, Any]:
     }
     for table, required in required_by_table.items():
         if not _table_exists(engine, table):
-            raise HedgeMigrationError(f"R5 authority table is missing: {table}")
+            raise HedgeMigrationError(f"execution authority table is missing: {table}")
         missing = sorted(required - _column_names(engine, table))
         if missing:
             raise HedgeMigrationError(
-                f"R5 authority table {table} is missing columns: {missing}"
+                f"execution authority table {table} is missing columns: {missing}"
             )
     budget_uniques = {
         tuple(sorted(item.get("column_names") or ()))
         for item in inspect(engine).get_unique_constraints("hedge_r5_daily_budgets")
     }
     if tuple(sorted(("account_id", "utc_date"))) not in budget_uniques:
-        raise HedgeMigrationError("R5 daily budget scope uniqueness is missing")
+        raise HedgeMigrationError("execution daily budget scope uniqueness is missing")
     income_uniques = {
         tuple(sorted(item.get("column_names") or ()))
         for item in inspect(engine).get_unique_constraints("hedge_r5_income_events")
     }
     if tuple(sorted(("exchange", "account_id", "external_event_id"))) not in income_uniques:
-        raise HedgeMigrationError("R5 income event identity uniqueness is missing")
+        raise HedgeMigrationError("execution income event identity uniqueness is missing")
     return {"tables": tuple(required_by_table), "verified": True}
 
 
@@ -2490,7 +2490,7 @@ def _verify_release(engine: Engine) -> None:
     _step_verify_r2_execution_authority(engine)
     _step_verify_control_operations(engine)
     _step_verify_control_operation_leases(engine)
-    _step_verify_r5_authority_tables(engine)
+    _step_verify_execution_authority_tables(engine)
 
 
 def _steps() -> tuple[MigrationStep, ...]:
@@ -2654,12 +2654,12 @@ def _steps() -> tuple[MigrationStep, ...]:
         MigrationStep(
             "H3-033-r5-authority-ledger",
             "Create R5 daily budget, reservation and immutable income authority",
-            _step_create_r5_authority_tables,
+            _step_create_execution_authority_tables,
         ),
         MigrationStep(
             "H3-034-verify-r5-authority-ledger",
             "Verify R5 budget lifecycle and income idempotency constraints",
-            _step_verify_r5_authority_tables,
+            _step_verify_execution_authority_tables,
         ),
     )
 

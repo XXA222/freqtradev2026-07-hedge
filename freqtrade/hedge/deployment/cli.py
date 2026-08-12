@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import HedgeDeploymentConfig
-from .readiness import validate_r37_report
+from .readiness import validate_security_readiness_report
 from .state import RuntimeStateStore
 from .supervisor import HedgeProcessSupervisor
 
@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     config = HedgeDeploymentConfig.from_file(args.deployment_config)
     if args.command == "preflight":
-        readiness = validate_r37_report(config)
+        readiness = validate_security_readiness_report(config)
         print(json.dumps(asdict(readiness), sort_keys=True, default=str))
         return 0
     supervisor = HedgeProcessSupervisor(config)

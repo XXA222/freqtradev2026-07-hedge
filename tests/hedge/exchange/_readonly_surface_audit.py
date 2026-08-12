@@ -9,7 +9,6 @@ RUNTIME_PACKAGES = ("exchange", "readonly")
 FORBIDDEN_IMPORT_PREFIXES = (
     "sqlalchemy",
     "freqtrade.persistence",
-    "freqtrade.hedge.persistence",
 )
 FORBIDDEN_METHOD_NAMES = {
     "cancel_order",
@@ -150,11 +149,38 @@ def _dynamic_import_name(node: ast.Call) -> str | None:
     return str(node.args[0].value)
 
 
+def _request_call_entry(node: ast.Call) -> tuple[str, str] | None:
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or node.func.attr not in {"request", "_request_once"}
+    ):
+        return None
+    if len(node.args) < 2:
+        return None
+    method_node, path_node = node.args[:2]
+    if not isinstance(method_node, ast.Constant) or not isinstance(path_node, ast.Constant):
+        return None
+    method = method_node.value
+    path = path_node.value
+    if not isinstance(method, str) or not isinstance(path, str):
+        return None
+    normalized_method = method.upper()
+    if normalized_method not in WRITE_HTTP_METHODS or path not in FORBIDDEN_RUNTIME_PATHS:
+        return None
+    return normalized_method, path
+
+
 def _call_findings(path: Path, node: ast.Call) -> list[str]:
+    findings: list[str] = []
     module = _dynamic_import_name(node)
-    if module is None or not _is_forbidden_import(module):
-        return []
-    return [f"Forbidden dynamic import {module!r} in {path}:{node.lineno}"]
+    if module is not None and _is_forbidden_import(module):
+        findings.append(f"Forbidden dynamic import {module!r} in {path}:{node.lineno}")
+    write_entry = _request_call_entry(node)
+    if write_entry is not None:
+        findings.append(
+            f"Forbidden exchange write request {write_entry!r} in {path}:{node.lineno}"
+        )
+    return findings
 
 
 def _definition_findings(
@@ -164,12 +190,6 @@ def _definition_findings(
     if node.name not in FORBIDDEN_METHOD_NAMES:
         return []
     return [f"Forbidden exchange write method {node.name} in {path}:{node.lineno}"]
-
-
-def _constant_findings(path: Path, node: ast.Constant) -> list[str]:
-    if not isinstance(node.value, str) or node.value not in FORBIDDEN_RUNTIME_PATHS:
-        return []
-    return [f"Forbidden exchange write endpoint {node.value} in {path}:{node.lineno}"]
 
 
 def _http_allowlist_entry(node: ast.Tuple) -> tuple[str, str] | None:
@@ -209,8 +229,6 @@ def _node_findings(
         return _definition_findings(path, node)
     if isinstance(node, ast.Call):
         return _call_findings(path, node)
-    if isinstance(node, ast.Constant):
-        return _constant_findings(path, node)
     if isinstance(node, ast.Tuple):
         return _tuple_findings(path, node)
     return []

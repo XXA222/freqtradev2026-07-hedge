@@ -86,3 +86,30 @@ def test_runtime_surface_check_resolves_package_relative_imports(tmp_path):
         "Forbidden persistence import" in finding
         for finding in findings
     )
+
+def test_runtime_surface_allows_readonly_query_order_endpoint(tmp_path):
+    hedge_root = tmp_path / "freqtrade" / "hedge"
+    (hedge_root / "exchange").mkdir(parents=True)
+    (hedge_root / "readonly").mkdir()
+    (hedge_root / "exchange" / "client.py").write_text(
+        "async def probe(transport):\n"
+        "    return await transport.request('GET', '/fapi/v1/order')\n",
+        encoding="utf-8",
+    )
+    verifier = _load_verifier()
+    assert verifier.verify(hedge_root) == []
+
+
+def test_runtime_surface_still_rejects_order_write_request(tmp_path):
+    hedge_root = tmp_path / "freqtrade" / "hedge"
+    (hedge_root / "exchange").mkdir(parents=True)
+    (hedge_root / "readonly").mkdir()
+    (hedge_root / "exchange" / "client.py").write_text(
+        "async def probe(transport):\n"
+        "    return await transport.request('POST', '/fapi/v1/order')\n",
+        encoding="utf-8",
+    )
+    verifier = _load_verifier()
+    findings = verifier.verify(hedge_root)
+    assert any("Forbidden exchange write request" in finding for finding in findings)
+

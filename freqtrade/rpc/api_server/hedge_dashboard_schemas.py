@@ -1,4 +1,4 @@
-"""Pydantic responses for the optional local R5.5 Dry-run dashboard."""
+"""Pydantic responses for the optional local Hedge Dry-run dashboard."""
 from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal

@@ -638,16 +638,29 @@ class FreqaiDataDrawer:
                 self.model_type, self.freqai_info["rl_config"]["model_type"]
             )
             MODELCLASS = getattr(mod, self.freqai_info["rl_config"]["model_type"])
-            model = MODELCLASS.load(dk.data_path / f"{dk.model_filename}_model")
+            device = str(
+                self.freqai_info.get("model_training_parameters", {}).get("device", "auto")
+            )
+            model = MODELCLASS.load(
+                dk.data_path / f"{dk.model_filename}_model",
+                device=device,
+            )
         elif self.model_type == "pytorch":
             import torch
 
+            device = str(
+                self.freqai_info.get("model_training_parameters", {}).get("device", "auto")
+            ).lower()
+            map_location = "cpu" if device == "cpu" else None
             zipfile = torch.load(
                 dk.data_path / f"{dk.model_filename}_model.zip",
+                map_location=map_location,
                 weights_only=False,
             )
             # weights_only is necessary due to pytrainer being a serialized python object.
             _trainer = zipfile["pytrainer"]
+            if device in {"cpu", "cuda", "mps"} and hasattr(_trainer, "set_device"):
+                _trainer.set_device(device)
             model = _trainer.load_from_checkpoint(zipfile)
 
         if not model:

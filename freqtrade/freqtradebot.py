@@ -93,6 +93,10 @@ class FreqtradeBot(LoggingMixin):
         self.hedge_application = None
         self.hedge_controller = None
         self.hedge_operation_mode = None
+        self.hedge_native_convergence = None
+        self.hedge_model_gate = None
+        self.hedge_producer_gate = None
+        self.hedge_universe_manager = None
         hedge_integration_config = None
 
         # Init bot state
@@ -238,6 +242,22 @@ class FreqtradeBot(LoggingMixin):
             # Initialize protections AFTER bot start - otherwise parameters are not loaded.
             self.protections = ProtectionManager(self.config, self.strategy.protections)
 
+            if self.hedge_controller is not None:
+                from freqtrade.hedge.native import build_native_convergence
+
+                self.hedge_native_convergence = build_native_convergence(
+                    config=self.config,
+                    strategy=self.strategy,
+                    protections=self.protections,
+                    pairlocks=PairLocks,
+                    state_provider=lambda: self.state,
+                    capital_provider=self._hedge_capital_provider,
+                )
+                self.hedge_controller.bind_native_convergence(
+                    self.hedge_native_convergence
+                )
+                self._configure_hedge_native_optional_gates()
+
             def log_took_too_long(duration: float, time_limit: float):
                 logger.warning(
                     f"Strategy analysis took {duration:.2f}s, more than 25% of the timeframe "
@@ -253,6 +273,131 @@ class FreqtradeBot(LoggingMixin):
             self.cleanup()
             raise e from e
 
+    def _configure_hedge_native_optional_gates(self) -> None:
+        """Bind FreqAI, producer and Pairlist-universe gates from strict config."""
+
+        if self.hedge_native_convergence is None:
+            return
+        from datetime import timedelta
+        from json import loads
+        from pathlib import Path
+
+        from freqtrade.hedge.native.freqai import (
+            HedgeModelReadinessGate,
+            manifest_from_mapping,
+        )
+        from freqtrade.hedge.native.producer import (
+            HedgeProducerConsumerGate,
+            ProducerIdentity,
+        )
+        from freqtrade.hedge.native.universe import HedgeUniverseManager
+
+        hedge_raw = self.config.get("hedge", {})
+        hedge = dict(hedge_raw) if isinstance(hedge_raw, dict) else {}
+
+        freqai_raw = hedge.get("freqai_native", {})
+        freqai = dict(freqai_raw) if isinstance(freqai_raw, dict) else {}
+        if bool(freqai.get("enabled", False)):
+            manifest = None
+            manifest_path = freqai.get("model_manifest_path")
+            if manifest_path not in (None, ""):
+                payload = loads(Path(str(manifest_path)).read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Hedge FreqAI model manifest must be a JSON object")
+                manifest = manifest_from_mapping(payload)
+            self.hedge_model_gate = HedgeModelReadinessGate(
+                manifest,
+                required=bool(freqai.get("required", False)),
+                expected_feature_schema=(
+                    None
+                    if freqai.get("expected_feature_schema") in (None, "")
+                    else str(freqai["expected_feature_schema"])
+                ),
+                maximum_signal_age=timedelta(
+                    seconds=int(freqai.get("maximum_signal_age_seconds", 120))
+                ),
+            )
+            self.hedge_native_convergence.bind_model_gate(self.hedge_model_gate)
+            self.hedge_controller.bind_model_gate(self.hedge_model_gate)
+
+        producer_raw = hedge.get("producer_consumer", {})
+        producer = dict(producer_raw) if isinstance(producer_raw, dict) else {}
+        if bool(producer.get("enabled", False)):
+            identities: dict[str, ProducerIdentity] = {}
+            configured = producer.get("producers", {})
+            if isinstance(configured, dict):
+                for producer_id, values in configured.items():
+                    row = dict(values) if isinstance(values, dict) else {}
+                    identities[str(producer_id)] = ProducerIdentity(
+                        str(producer_id),
+                        priority=int(row.get("priority", 100)),
+                        allowed_pairs=tuple(row.get("allowed_pairs", ())),
+                        expected_feature_schema=row.get("expected_feature_schema"),
+                    )
+            identities.setdefault(
+                "freqtrade-strategy",
+                ProducerIdentity(
+                    "freqtrade-strategy",
+                    priority=0,
+                    allowed_pairs=tuple(self.active_pair_whitelist),
+                ),
+            )
+            self.hedge_producer_gate = HedgeProducerConsumerGate(
+                identities,
+                maximum_age=timedelta(
+                    seconds=int(producer.get("maximum_age_seconds", 120))
+                ),
+                conflict_tolerance=producer.get("conflict_tolerance", "0.10"),
+                fail_on_conflict=bool(producer.get("fail_on_conflict", True)),
+            )
+            self.hedge_native_convergence.bind_producer_gate(self.hedge_producer_gate)
+            self.hedge_controller.bind_producer_gate(self.hedge_producer_gate)
+
+        universe_raw = hedge.get("universe", {})
+        universe = dict(universe_raw) if isinstance(universe_raw, dict) else {}
+        if bool(universe.get("enabled", False)):
+            self.hedge_universe_manager = HedgeUniverseManager(
+                max_symbols=int(universe.get("max_pairs", 20)),
+                configured_weights=(
+                    universe.get("weights", {})
+                    if isinstance(universe.get("weights", {}), dict)
+                    else {}
+                ),
+            )
+            self._refresh_hedge_universe()
+            self.hedge_native_convergence.bind_universe_gate(
+                self.hedge_universe_manager
+            )
+
+    def _refresh_hedge_universe(self) -> None:
+        manager = self.hedge_universe_manager
+        if manager is None:
+            return
+        hedge_raw = self.config.get("hedge", {})
+        hedge = dict(hedge_raw) if isinstance(hedge_raw, dict) else {}
+        universe_raw = hedge.get("universe", {})
+        universe = dict(universe_raw) if isinstance(universe_raw, dict) else {}
+        configured_pairs = universe.get("pairs")
+        pairs = (
+            tuple(str(item) for item in configured_pairs)
+            if isinstance(configured_pairs, list) and configured_pairs
+            else tuple(self.active_pair_whitelist)
+        )
+        blacklist = tuple(self.config.get("exchange", {}).get("pair_blacklist", ()))
+        equity, _available, _gross = self._hedge_capital_provider()
+        manager.refresh(
+            pairs,
+            blacklist=blacklist,
+            account_capital=equity,
+            open_position_pairs=(
+                (self.hedge_runtime.config.managed_pair,)
+                if self.hedge_runtime is not None
+                and self.hedge_runtime.config.managed_pair
+                and _gross > 0
+                else ()
+            ),
+        )
+
     def notify_status(self, msg: str, msg_type=RPCMessageType.STATUS) -> None:
         """
         Public method for users of this class (worker, etc.) to send notifications
@@ -265,8 +410,58 @@ class FreqtradeBot(LoggingMixin):
 
         assert_native_exchange_write_allowed(self.config, operation=operation)
 
+    def _hedge_capital_provider(self) -> tuple[object, object, object]:
+        """Return equity, available balance and gross Hedge notional.
+
+        Paper mode uses its authoritative Cross wallet.  Readonly/production mode
+        falls back to the Freqtrade Wallet projection and fails conservatively to a
+        zero gross value only when no Hedge position mark is available yet.
+        """
+
+        application = self.hedge_application
+        if application is not None and application.last_market is not None:
+            market = application.last_market
+            wallet = application.wallet(market)
+            return (
+                wallet.equity,
+                wallet.available_balance,
+                wallet.gross_notional(market.mark),
+            )
+        equity = self.wallets.get_total_stake_amount()
+        available = self.wallets.get_available_stake_amount()
+        gross: object = 0
+        if self.hedge_runtime is not None and self.hedge_runtime.config.managed_pair:
+            try:
+                exposure = self.wallets.get_hedge_exposure(
+                    self.hedge_runtime.config.managed_pair,
+                    equity=equity,
+                )
+                gross = exposure.gross_total_notional
+            except (KeyError, TypeError, ValueError):
+                gross = 0
+        return equity, available, gross
+
+    def _cancel_hedge_managed_orders(self, *, source: str) -> None:
+        if self.hedge_controller is None:
+            return
+        canceled, errors = self.hedge_controller.cancel_managed_orders()
+        if canceled:
+            logger.info("Canceled %s managed Hedge order(s) during %s.", canceled, source)
+        if errors:
+            logger.error(
+                "Managed Hedge order cancellation during %s had %s error(s): %s",
+                source,
+                len(errors),
+                "; ".join(errors),
+            )
+
     def cleanup(self) -> None:
         """Cleanup pending resources on an already stopped bot."""
+        if (
+            self.config.get("cancel_open_orders_on_exit", False)
+            and self.hedge_runtime is not None
+        ):
+            self._cancel_hedge_managed_orders(source="cleanup")
         if self.hedge_composition is not None:
             try:
                 self.hedge_composition.stop()
@@ -405,13 +600,23 @@ class FreqtradeBot(LoggingMixin):
                 "legacy trading remains disabled."
             )
             return
+        self._refresh_hedge_universe()
+        if (
+            self.hedge_native_convergence is not None
+            and not self.hedge_native_convergence.planner_enabled()
+        ):
+            logger.info("Hedge planner skipped because official bot state disallows planning.")
+            return
         self.hedge_controller.after_strategy_analyze()
 
     def process_stopped(self) -> None:
-        """
-        Close all orders that were left open
-        """
-        if self.config["cancel_open_orders_on_exit"] and self.hedge_runtime is None:
+        """Cancel only orders owned by the active execution family."""
+
+        if not self.config.get("cancel_open_orders_on_exit", False):
+            return
+        if self.hedge_runtime is not None:
+            self._cancel_hedge_managed_orders(source="stopped-loop")
+        else:
             self.cancel_all_open_orders()
 
     def check_for_open_trades(self):

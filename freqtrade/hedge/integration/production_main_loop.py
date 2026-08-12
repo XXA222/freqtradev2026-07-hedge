@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from hashlib import sha256
-from typing import Iterable
+from typing import Callable, Iterable
 
 from freqtrade.hedge.execution.kill_switch import KillSwitch, KillSwitchSnapshot
 from freqtrade.hedge.execution.orchestrator import HedgeExecutionEngine
@@ -21,12 +21,16 @@ from freqtrade.hedge.execution.ownership import (
 from freqtrade.hedge.execution.service import ExecutionResult
 from freqtrade.hedge.execution.state_machine import OrderState
 from freqtrade.hedge.planning.context import ActiveOrder, PlanningContext, PlanningResult
+from freqtrade.hedge.native.admission import (
+    CompositeAdmissionPolicy,
+    planner_intent_to_native,
+)
 from freqtrade.hedge.planning.ideal_orders import PureHedgePlanner
 from freqtrade.hedge.symbols import raw_symbol
 
 from .strategy_state import StrategyStateStorePort
 
-_SUPPORTED_PERPETUALS = frozenset({"BTCUSDT", "ETHUSDT"})
+_SUPPORTED_SETTLE_SUFFIXES = ("USDT", "USDC", "FDUSD")
 _ACTIVE_STATES = frozenset(
     {
         OrderState.PREPARED,
@@ -36,6 +40,14 @@ _ACTIVE_STATES = frozenset(
         OrderState.UNKNOWN,
     }
 )
+
+
+def _valid_perpetual_symbol(value: str) -> bool:
+    return (
+        value.isascii()
+        and value.isalnum()
+        and any(value.endswith(suffix) and len(value) > len(suffix) for suffix in _SUPPORTED_SETTLE_SUFFIXES)
+    )
 
 
 class HedgeExecutionMode(StrEnum):
@@ -133,6 +145,7 @@ class ProductionEquivalentHedgeMainLoop:
         max_submissions_per_cycle: int = 32,
         max_cancellations_per_cycle: int = 64,
         block_new_risk_on_external_side: bool = True,
+        admission_provider: Callable[[object], object] | None = None,
     ) -> None:
         self.account_id = str(account_id).strip()
         if not self.account_id:
@@ -151,8 +164,10 @@ class ProductionEquivalentHedgeMainLoop:
         if not self.strategy_id:
             raise ValueError("strategy_id is required")
         normalized = tuple(dict.fromkeys(raw_symbol(item) for item in allowed_symbols))
-        if not normalized or not set(normalized).issubset(_SUPPORTED_PERPETUALS):
-            raise ValueError("allowed_symbols may contain only BTCUSDT and ETHUSDT perpetuals")
+        if not normalized or not all(_valid_perpetual_symbol(item) for item in normalized):
+            raise ValueError(
+                "allowed_symbols must contain valid USDT/USDC/FDUSD perpetual symbols"
+            )
         self.allowed_symbols = normalized
         self.state_store = state_store
         self.max_submissions_per_cycle = _positive_int(
@@ -167,6 +182,10 @@ class ProductionEquivalentHedgeMainLoop:
             raise TypeError("block_new_risk_on_external_side must be boolean")
         self.block_new_risk_on_external_side = block_new_risk_on_external_side
         self._new_risk_control = NewRiskControlSnapshot(True, None, None)
+        self._admission_policy = CompositeAdmissionPolicy()
+        self._intent_transformers: list[Callable[[object], object]] = []
+        if admission_provider is not None:
+            self.bind_order_admission_provider(admission_provider)
         self._validate_mode_kind()
 
     def _validate_mode_kind(self) -> None:
@@ -212,6 +231,26 @@ class ProductionEquivalentHedgeMainLoop:
         actor_text = _control_text(actor, "actor", 128)
         self._new_risk_control = NewRiskControlSnapshot(True, None, actor_text)
         return self._new_risk_control
+
+    def bind_order_admission_provider(self, provider: Callable[[object], object]) -> None:
+        """Compose a side-aware native admission policy into the authoritative loop."""
+
+        self._admission_policy.add(provider)
+
+    @property
+    def order_admission_provider_count(self) -> int:
+        return self._admission_policy.provider_count
+
+    def bind_order_transformer(self, transformer: Callable[[object], object]) -> None:
+        if not callable(transformer):
+            raise TypeError("order transformer must be callable")
+        self._intent_transformers.append(transformer)
+
+    def _transform_intent(self, intent: object) -> object:
+        current = intent
+        for transformer in tuple(self._intent_transformers):
+            current = transformer(current)
+        return current
 
     def run_cycle(
         self, context: PlanningContext, *, strategy_allows_new_risk: bool = True
@@ -289,7 +328,8 @@ class ProductionEquivalentHedgeMainLoop:
         deferred_submits = tuple(
             item.intent_id for item in planning.submit_orders[self.max_submissions_per_cycle :]
         )
-        for planner_intent in submit_orders:
+        for original_planner_intent in submit_orders:
+            planner_intent = self._transform_intent(original_planner_intent)
             if cancel_phase_incomplete and not planner_intent.reduce_only:
                 blocked.append(planner_intent.intent_id)
                 continue
@@ -301,6 +341,12 @@ class ProductionEquivalentHedgeMainLoop:
                 and not planner_intent.reduce_only
                 and planner_intent.position_side in external_sides
             ):
+                blocked.append(planner_intent.intent_id)
+                continue
+            native_decision = self._admission_policy.evaluate(
+                planner_intent_to_native(planner_intent)
+            )
+            if not native_decision.allowed:
                 blocked.append(planner_intent.intent_id)
                 continue
             intent = _adapt_stable(

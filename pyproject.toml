@@ -61,7 +61,7 @@ dependencies = [
   "fastapi",
   "pydantic>=2.2.0",
   "pyjwt",
-  "websockets",
+  "websockets==16.1.1",
   "uvicorn",
   "psutil",
   "schedule",
@@ -111,7 +111,7 @@ develop = [
   "pytest-timeout",
   "pytest-xdist",
   "pytest",
-  "ruff",
+  "ruff==0.16.2",
   "scipy-stubs",
   "time-machine",
   "types-cachetools",
@@ -141,10 +141,6 @@ Documentation = "https://freqtrade.io"
 
 [project.scripts]
 freqtrade = "freqtrade.main:main"
-freqtrade-hedge-r54 = "freqtrade.hedge.r54.cli:main"
-freqtrade-hedge-r55 = "freqtrade.hedge.r55.cli:main"
-freqtrade-hedge-r56 = "freqtrade.hedge.r56.cli:main"
-freqtrade-hedge-r561 = "freqtrade.hedge.r561.cli:main"
 
 [tool.setuptools]
 include-package-data = true
@@ -241,7 +237,10 @@ line-length = 100
 extend-exclude = [".env", ".venv"]
 
 [tool.ruff.lint]
-extend-select = [
+# Pin the project lint policy explicitly. Ruff 0.16 changed the default rule set
+# substantially; using `extend-select` made release gates depend on the installed
+# Ruff minor version. `select` keeps Windows and CI behavior deterministic.
+select = [
   "C90",    # mccabe
   "B",      # bugbear
   # "N",    # pep8-naming
@@ -263,6 +262,12 @@ extend-select = [
   "RUF",    # ruff
   "ASYNC",  # flake8-async
   "NPY",    # numpy
+  "FURB157",  # prefer exact numeric Decimal constructors for integral literals
+  "ISC004",   # implicit concatenation inside collections
+  "SIM102",   # nested if statements that can be combined
+  "TRY004",   # TypeError for invalid types
+  "DTZ001",   # naive datetime construction
+  "C408",     # unnecessary dict() calls
 ]
 
 extend-ignore = [
@@ -296,6 +301,7 @@ max-complexity = 12
   "S106",  # Possible hardcoded password assigned to argument: "token_type"
   "S110",  # `try`-`except`-`pass` detected, consider logging the exception
   ]
+
 
 "freqtrade/templates/**.py" = [
   "RUF100",  # Allow unused noqa

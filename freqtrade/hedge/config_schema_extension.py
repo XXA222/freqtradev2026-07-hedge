@@ -117,7 +117,11 @@ def extend_config_schema(conf_schema: dict[str, Any]) -> None:
                             },
                             "allowed_symbols": {
                                 "type": "array",
-                                "items": {"type": "string", "enum": ["BTCUSDT", "ETHUSDT"]},
+                                "items": {
+                                    "type": "string",
+                                    "pattern": "^[A-Za-z0-9/_:-]+$",
+                                    "minLength": 6,
+                                },
                                 "uniqueItems": True,
                                 "minItems": 1,
                             },
@@ -260,11 +264,10 @@ def extend_config_schema(conf_schema: dict[str, Any]) -> None:
     if isinstance(hedge_schema, dict):
         hedge_properties = hedge_schema.setdefault("properties", {})
         hedge_properties.setdefault(
-            "r56",
+            "operations",
             {
                 "type": "object",
                 "additionalProperties": False,
-                "default": {},
                 "properties": {
                     "enabled": {"type": "boolean", "default": False},
                     "state_path": {"type": "string", "minLength": 1},
@@ -289,34 +292,117 @@ def extend_config_schema(conf_schema: dict[str, Any]) -> None:
             },
         )
         hedge_properties.setdefault(
-            "r561",
+            "native_convergence",
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "default": {},
+                "properties": {
+                    "enabled": {"type": "boolean", "default": True},
+                    "callback_mode": {
+                        "type": "string",
+                        "enum": ["native_only", "legacy_view", "both_conservative"],
+                        "default": "native_only",
+                    },
+                    "fail_closed_confirmations": {"type": "boolean", "default": True},
+                    "exits": {"type": "object"},
+                    "rpc_projection": {"type": "boolean", "default": True},
+                    "notifications": {"type": "boolean", "default": True},
+                    "capital_policy": {"type": "object"},
+                },
+            },
+        )
+        hedge_properties.setdefault(
+            "universe",
             {
                 "type": "object",
                 "additionalProperties": False,
                 "default": {},
                 "properties": {
                     "enabled": {"type": "boolean", "default": False},
-                    "required_python": {"type": "string", "enum": ["3.12"]},
-                    "network_probe_attempts": {"type": "integer", "minimum": 1},
-                    "network_min_success_ratio": {
-                        "type": ["string", "number", "integer"]
+                    "pairs": {
+                        "type": "array",
+                        "items": {"type": "string", "minLength": 3},
+                        "uniqueItems": True,
                     },
-                    "network_max_last_candle_age_seconds": {
-                        "type": "integer", "minimum": 1
-                    },
-                    "network_max_missing_candles": {"type": "integer", "minimum": 0},
-                    "max_strategy_cycle_age_seconds": {"type": "integer", "minimum": 1},
-                    "max_reconciliation_age_seconds": {"type": "integer", "minimum": 1},
-                    "permission_probe_path": {"type": "string", "minLength": 1},
-                    "evidence_path": {"type": "string", "minLength": 1},
-                    "require_proxy_trust_env": {"type": "boolean", "default": True},
-                    "position_adjustment_owner": {
-                        "type": "string", "enum": ["hedge_planner"]
-                    },
-                    "api_exposure_mode": {
+                    "weights": {"type": "object"},
+                    "blacklist_policy": {
                         "type": "string",
-                        "enum": ["local_process", "docker_loopback_publish"],
+                        "enum": ["reduce_only", "drain", "immediate_exit"],
+                        "default": "drain",
                     },
+                    "drain_removed_pairs": {"type": "boolean", "default": True},
+                    "max_pairs": {"type": "integer", "minimum": 1, "default": 20},
+                    "minimum_pair_weight": {"type": ["string", "number"], "default": "0"},
+                },
+            },
+        )
+        hedge_properties.setdefault(
+            "freqai_native",
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "default": {},
+                "properties": {
+                    "enabled": {"type": "boolean", "default": False},
+                    "required": {"type": "boolean", "default": False},
+                    "maximum_signal_age_seconds": {"type": "integer", "minimum": 1},
+                    "expected_feature_schema": {"type": ["string", "null"]},
+                    "model_manifest_path": {"type": ["string", "null"]},
+                    "fail_closed_on_expiry": {"type": "boolean", "default": True},
+                    "compatible_pairs": {
+                        "type": "array", "items": {"type": "string"}, "uniqueItems": True
+                    },
+                },
+            },
+        )
+        hedge_properties.setdefault(
+            "producer_consumer",
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "default": {},
+                "properties": {
+                    "enabled": {"type": "boolean", "default": False},
+                    "required": {"type": "boolean", "default": False},
+                    "maximum_age_seconds": {"type": "integer", "minimum": 1},
+                    "conflict_tolerance": {"type": ["string", "number"]},
+                    "fail_on_conflict": {"type": "boolean", "default": True},
+                    "producers": {"type": "object"},
+                },
+            },
+        )
+        hedge_properties.setdefault(
+            "hyperopt_native",
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "default": {},
+                "properties": {
+                    "enabled": {"type": "boolean", "default": False},
+                    "epochs": {"type": "integer", "minimum": 1},
+                    "jobs": {"type": "integer"},
+                    "seed": {"type": "integer"},
+                    "loss_weights": {"type": "object"},
+                    "result_path": {"type": ["string", "null"]},
+                },
+            },
+        )
+        hedge_properties.setdefault(
+            "rl_native",
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "default": {},
+                "properties": {
+                    "enabled": {"type": "boolean", "default": False},
+                    "max_step_ratio": {"type": ["string", "number"]},
+                    "min_liquidation_buffer": {"type": ["string", "number"]},
+                    "max_gross_exposure": {"type": ["string", "number"]},
+                    "require_confidence": {"type": ["string", "number"]},
+                    "reward_weights": {"type": "object"},
+                    "vector_envs": {"type": "integer", "minimum": 1},
+                    "device": {"type": "string", "enum": ["auto", "cpu", "cuda"]},
                 },
             },
         )

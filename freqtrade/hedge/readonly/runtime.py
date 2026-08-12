@@ -105,7 +105,7 @@ class BinanceReadonlyRuntimeConfig:
     fill_lookback: timedelta = timedelta(hours=72)
     history_overlap: timedelta = timedelta(minutes=5)
     max_history_backfill: timedelta | None = timedelta(days=30)
-    quantity_tolerance: Decimal = Decimal("0")
+    quantity_tolerance: Decimal = Decimal(0)
     financial_tolerance: Decimal = Decimal("0.00000001")
     listen_key_ttl: timedelta = timedelta(minutes=60)
     listen_key_renew_interval: timedelta = timedelta(minutes=30)
