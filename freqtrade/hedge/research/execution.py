@@ -7,6 +7,7 @@ entry points and never the live ``trade`` command.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
@@ -28,6 +29,9 @@ from .training import materialize_training_override, normalize_training_device
 if TYPE_CHECKING:
     from .service import HedgeResearchService
 
+
+
+logger = logging.getLogger(__name__)
 
 _TRAINING_KINDS = frozenset(
     {
@@ -243,7 +247,11 @@ class ResearchExecutionManager:
                 media_type="application/json",
             )
         except ValueError:
-            pass
+            logger.debug(
+                "Training materialization attachment was not registered for job %s",
+                job_id,
+                exc_info=True,
+            )
         return materialized.path
 
     @staticmethod
@@ -650,7 +658,11 @@ class ResearchExecutionManager:
                         message=observation.message,
                     )
                 except ValueError:
-                    pass
+                    logger.debug(
+                        "Research progress observation rejected for job %s",
+                        running.job_id,
+                        exc_info=True,
+                    )
 
         for metric in observe_metrics(line):
             previous_step = running.metric_steps.get(metric.name)
@@ -713,7 +725,11 @@ class ResearchExecutionManager:
         try:
             self.service.register_experiment(job_id)
         except (OSError, TypeError, ValueError):
-            pass
+            logger.debug(
+                "Best-effort experiment registration failed for job %s",
+                job_id,
+                exc_info=True,
+            )
 
     def _write_replay_error(
         self,
@@ -727,7 +743,11 @@ class ResearchExecutionManager:
                 max_bytes=256 * 1024,
             )
         except (OSError, ValueError):
-            pass
+            logger.warning(
+                "Unable to persist optimization replay error for job %s",
+                job_id,
+                exc_info=True,
+            )
 
     def _auto_replay_optimization(self, running: _RunningProcess) -> None:
         if running.kind is not ResearchKind.OPTIMIZATION:
@@ -841,7 +861,10 @@ class ResearchExecutionManager:
                     f"executor failure: {type(exc).__name__}: {exc}",
                 )
         except Exception:
-            pass
+            logger.exception(
+                "Unable to record research executor failure for job %s",
+                running.job_id,
+            )
 
     def _cleanup_running(self, running: _RunningProcess) -> None:
         with self._condition:
@@ -912,7 +935,10 @@ class ResearchExecutionManager:
                     try:
                         process.resume()
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
+                        logger.debug(
+                            "Unable to roll back a partially suspended research process",
+                            exc_info=True,
+                        )
             action = "pause" if suspended else "resume"
             raise RuntimeError(
                 f"unable to {action} research process tree"
@@ -1010,7 +1036,11 @@ class ResearchExecutionManager:
         try:
             self.service.note(job_id, "cancel requested")
         except ValueError:
-            pass
+            logger.debug(
+                "Research cancel note rejected for job %s",
+                job_id,
+                exc_info=True,
+            )
         self._terminate_process_tree(
             running.process.pid,
             grace_seconds=self.config.cancel_grace_seconds,

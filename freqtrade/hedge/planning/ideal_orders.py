@@ -126,7 +126,7 @@ def _enforce_exposure(
             accepted.append(order)
             projected_long_notional, projected_short_notional = candidate_long, candidate_short
             reserved_margin += order_margin + maintenance
-        else:
+        elif context.collect_diagnostics:
             diagnostics.append(
                 f"{order.position_side.value}:rejected:{order.intent_id}:exposure_or_margin"
             )
@@ -194,10 +194,11 @@ class PureHedgePlanner(StrategyPlanningPort):
             ):
                 matched_managed.add(compatible.order_id)
                 kept_active.add(compatible.order_id)
-                debounce_diag.append(
-                    f"{order.position_side.value}:replacement_debounced:"
-                    f"{compatible.order_id}"
-                )
+                if context.collect_diagnostics:
+                    debounce_diag.append(
+                        f"{order.position_side.value}:replacement_debounced:"
+                        f"{compatible.order_id}"
+                    )
                 continue
             if compatible is not None:
                 matched_managed.add(compatible.order_id)

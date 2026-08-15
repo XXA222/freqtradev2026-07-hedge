@@ -49,7 +49,7 @@ def _order(key: str) -> ExecutionOrder:
         quantity=Decimal("0.25"),
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("2000"),
+        limit_price=Decimal(2000),
         metadata={"exchange": "paper", "planner_intent_id": "pg-planner"},
     )
     return ExecutionOrder(

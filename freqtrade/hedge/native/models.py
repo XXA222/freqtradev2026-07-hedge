@@ -14,8 +14,8 @@ from enum import StrEnum
 from typing import Any, Mapping
 
 
-ZERO = Decimal("0")
-ONE = Decimal("1")
+ZERO = Decimal(0)
+ONE = Decimal(1)
 
 
 def finite_decimal(value: object, *, field_name: str) -> Decimal:

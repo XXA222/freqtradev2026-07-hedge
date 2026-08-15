@@ -22,7 +22,7 @@ def intent(*, action: IntentAction, key: str, qty: str = "1") -> OrderIntent:
         quantity=Decimal(qty),
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("100"),
+        limit_price=Decimal(100),
     )
 
 
@@ -69,7 +69,7 @@ def test_fake_reduce_cannot_reverse_position() -> None:
         symbol="ETHUSDT",
         position_side=PositionSide.LONG,
         quantity=Decimal("0.5"),
-        average_price=Decimal("100"),
+        average_price=Decimal(100),
     )
     submitted = runtime.engine.submit(
         intent(action=IntentAction.REDUCE, key="reduce", qty="1")
@@ -88,8 +88,8 @@ def test_reduce_fill_realizes_pnl_without_crossing_zero() -> None:
         account_id="acct",
         symbol="ETHUSDT",
         position_side=PositionSide.LONG,
-        quantity=Decimal("1"),
-        average_price=Decimal("100"),
+        quantity=Decimal(1),
+        average_price=Decimal(100),
     )
     # Seed the transactional projection through an opening fill.
     opened = runtime.engine.submit(intent(action=IntentAction.OPEN, key="seed"))

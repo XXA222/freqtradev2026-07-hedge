@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import json
 import os
 import secrets
@@ -11,6 +12,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
 
+
+logger = logging.getLogger(__name__)
 
 class InstanceLockError(RuntimeError):
     """Raised when another supervisor already owns the instance lock."""
@@ -135,11 +138,11 @@ class SingleInstanceLock:
             try:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, cls._LOCK_BYTE_COUNT)
             except OSError:
-                pass
+                logger.debug("Windows instance-lock release failed", exc_info=True)
         else:
             import fcntl
 
             try:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
             except OSError:
-                pass
+                logger.debug("POSIX instance-lock release failed", exc_info=True)

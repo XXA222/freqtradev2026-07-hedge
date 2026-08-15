@@ -45,7 +45,7 @@ class PlannerIntent:
     action: E = E.OPEN
     bucket: E = E.CORE
     quantity: Decimal = Decimal("0.123")
-    price: Decimal = Decimal("100")
+    price: Decimal = Decimal(100)
     reduce_only: bool = False
     order_type: E = E.LIMIT
     time_in_force: E = E.GTC
@@ -72,7 +72,7 @@ def test_planner_unstuck_is_normalized_to_reduce() -> None:
         action=E.UNSTUCK,
         reduce_only=True,
         order_type=E.MARKET,
-        price=Decimal("99"),
+        price=Decimal(99),
     )
     result = adapt_planner_intent(planner, account_id="acct")
     assert result.action is IntentAction.REDUCE
@@ -117,8 +117,8 @@ def test_readiness_halt_blocks_new_risk_but_allows_reduce_to_reach_core() -> Non
         account_id="acct",
         symbol="ETHUSDT",
         position_side=PositionSide.LONG,
-        quantity=Decimal("1"),
-        average_price=Decimal("100"),
+        quantity=Decimal(1),
+        average_price=Decimal(100),
     )
     reduced = runtime.engine.submit(
         market_intent(action=IntentAction.REDUCE, key="reduce")
@@ -143,7 +143,7 @@ def test_market_rules_round_and_min_notional() -> None:
             quantity_step=Decimal("0.01"),
             price_tick=Decimal("0.1"),
             minimum_quantity=Decimal("0.01"),
-            minimum_notional=Decimal("10"),
+            minimum_notional=Decimal(10),
         ),
     )
     result = runtime.engine.submit(market_intent())

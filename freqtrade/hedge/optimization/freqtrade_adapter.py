@@ -25,6 +25,55 @@ class HedgeOptimizationRun:
     dataset_start: datetime
     dataset_end: datetime
     dataset_bar_count: int
+    parallel_backend: str = "serial"
+    peak_workers: int = 1
+    resource_samples: tuple[Mapping[str, object], ...] = ()
+
+
+_REQUIRED_OPTIMIZATION_DATASET_FIELDS = (
+    "pair",
+    "timeframe",
+    "start",
+    "end",
+    "bar_count",
+    "data_fingerprint",
+    "missing_candle_count",
+)
+
+
+def _require_optimization_dataset_contract(dataset: Any, *, source: str) -> Any:
+    """Validate the minimum dataset contract consumed by the optimization adapter.
+
+    Custom and test backtest runners are intentionally supported, but they must expose
+    the same safety-relevant facts as ``HedgeBacktestDataset``.  Missing gap metadata
+    must fail closed instead of being silently interpreted as a gap-free dataset.
+    """
+
+    missing = tuple(
+        name for name in _REQUIRED_OPTIMIZATION_DATASET_FIELDS if not hasattr(dataset, name)
+    )
+    if missing:
+        joined = ", ".join(missing)
+        raise TypeError(f"{source} backtest dataset is missing required field(s): {joined}")
+
+    missing_candle_count = dataset.missing_candle_count
+    if isinstance(missing_candle_count, bool) or not isinstance(missing_candle_count, int):
+        raise TypeError(f"{source} dataset missing_candle_count must be an integer")
+    if missing_candle_count < 0:
+        raise ValueError(f"{source} dataset missing_candle_count cannot be negative")
+
+    if isinstance(dataset.bar_count, bool) or not isinstance(dataset.bar_count, int):
+        raise TypeError(f"{source} dataset bar_count must be an integer")
+    if dataset.bar_count < 1:
+        raise ValueError(f"{source} dataset bar_count must be positive")
+
+    if not isinstance(dataset.data_fingerprint, str):
+        raise TypeError(f"{source} dataset data_fingerprint must be a string")
+    if not isinstance(dataset.pair, str) or not dataset.pair:
+        raise TypeError(f"{source} dataset pair must be a non-empty string")
+    if not isinstance(dataset.timeframe, str) or not dataset.timeframe:
+        raise TypeError(f"{source} dataset timeframe must be a non-empty string")
+    return dataset
 
 
 def window_timerange(
@@ -64,10 +113,11 @@ def run_freqtrade_hedge_optimization(  # noqa: C901
     ``run_freqtrade_hedge_backtest`` path; no alternate fill engine is introduced.
     """
 
+    prepared = None
     if backtest_runner is None:
-        from freqtrade.optimize.hedge_backtesting import run_freqtrade_hedge_backtest
+        from freqtrade.optimize.hedge_backtesting import prepare_freqtrade_hedge_backtest
 
-        backtest_runner = run_freqtrade_hedge_backtest
+        prepared = prepare_freqtrade_hedge_backtest(deepcopy(config))
     default_output = Path(str(config.get("user_data_dir", "user_data"))) / "hyperopt_results"
     optimization = parse_optimization_config(
         config,
@@ -77,21 +127,33 @@ def run_freqtrade_hedge_optimization(  # noqa: C901
     output.mkdir(parents=True, exist_ok=True)
     probe_path = output / ".dataset-probe.json"
     try:
-        probe = backtest_runner(
-            deepcopy(config), export_path=probe_path, export_events=False
-        )
+        if prepared is not None:
+            probe = prepared.run(deepcopy(config), export_path=probe_path, persist_artifact=False)
+        else:
+            if backtest_runner is None:  # pragma: no cover - defensive
+                raise RuntimeError("optimization backtest runner was not initialized")
+            probe = backtest_runner(
+                deepcopy(config), export_path=probe_path, export_events=False
+            )
     finally:
         for path in (probe_path, probe_path.with_suffix(probe_path.suffix + ".sha256")):
             if path.exists():
                 path.unlink()
 
-    from freqtrade.hedge.simulation.exchange import BarEvent
+    probe_dataset = _require_optimization_dataset_contract(probe.dataset, source="probe")
+    if probe_dataset.missing_candle_count:
+        raise ValueError(
+            "research optimization requires a gap-free compact dataset for O(1) timestamp indexing"
+        )
 
-    timestamps = tuple(
-        event.timestamp for event in probe.dataset.events if isinstance(event, BarEvent)
+    from freqtrade.exchange import timeframe_to_seconds
+    from freqtrade.hedge.backtesting.memory import RegularTimestampSequence
+
+    timestamps = RegularTimestampSequence(
+        start=probe_dataset.start,
+        step_seconds=timeframe_to_seconds(probe_dataset.timeframe),
+        count=probe_dataset.bar_count,
     )
-    if len(timestamps) != probe.dataset.bar_count:
-        raise ValueError("dataset bar count does not match replay BarEvent count")
 
     trial_directory = output / ".trial-artifacts"
     trial_directory.mkdir(parents=True, exist_ok=True)
@@ -102,28 +164,47 @@ def run_freqtrade_hedge_optimization(  # noqa: C901
     ) -> Mapping[str, object]:
         candidate = deepcopy(dict(trial_config))
         timerange = window_timerange(timestamps, context)
-        if timerange is not None:
-            candidate["timerange"] = timerange
+        row_slice = None
+        if context.window is not None:
+            if prepared is not None:
+                row_slice = slice(context.window.test.start, context.window.test.stop)
+            else:
+                if timerange is None:  # pragma: no cover - defensive contract
+                    raise RuntimeError("walk-forward evaluation did not produce a timerange")
+                candidate["timerange"] = timerange
         artifact = trial_directory / (
             f"trial-{context.trial_id:06d}-eval-{context.evaluation_index:04d}.json"
         )
         try:
-            run = backtest_runner(candidate, export_path=artifact, export_events=False)
-            if run.dataset.data_fingerprint == "":
+            if prepared is not None:
+                run = prepared.run(
+                    candidate,
+                    export_path=artifact,
+                    row_slice=row_slice,
+                    persist_artifact=False,
+                )
+            else:
+                if backtest_runner is None:  # pragma: no cover - defensive
+                    raise RuntimeError("optimization backtest runner was not initialized")
+                run = backtest_runner(candidate, export_path=artifact, export_events=False)
+            run_dataset = _require_optimization_dataset_contract(run.dataset, source="trial")
+            if run_dataset.missing_candle_count:
+                raise ValueError("trial backtest returned a dataset with missing candles")
+            if run_dataset.data_fingerprint == "":
                 raise ValueError("trial backtest returned an empty data fingerprint")
-            if run.dataset.pair != probe.dataset.pair:
+            if run_dataset.pair != probe_dataset.pair:
                 raise ValueError("trial backtest changed the managed dataset pair")
-            if run.dataset.timeframe != probe.dataset.timeframe:
+            if run_dataset.timeframe != probe_dataset.timeframe:
                 raise ValueError("trial backtest changed the dataset timeframe")
             expected_bars = (
-                probe.dataset.bar_count
+                probe_dataset.bar_count
                 if context.window is None
                 else context.window.test.length
             )
-            if run.dataset.bar_count != expected_bars:
+            if run_dataset.bar_count != expected_bars:
                 raise ValueError(
                     "trial backtest returned an unexpected number of bars: "
-                    f"expected={expected_bars}; actual={run.dataset.bar_count}"
+                    f"expected={expected_bars}; actual={run_dataset.bar_count}"
                 )
             # A full-range baseline trial must be byte-for-byte bound to the
             # initial analyzed dataset.  Walk-forward slices and explicit stress
@@ -132,7 +213,7 @@ def run_freqtrade_hedge_optimization(  # noqa: C901
             if (
                 context.window is None
                 and context.stress_scenario.name == "baseline"
-                and run.dataset.data_fingerprint != probe.dataset.data_fingerprint
+                and run_dataset.data_fingerprint != probe_dataset.data_fingerprint
             ):
                 raise ValueError(
                     "baseline trial dataset fingerprint drifted from the optimization probe; "
@@ -144,24 +225,28 @@ def run_freqtrade_hedge_optimization(  # noqa: C901
                 if path.exists():
                     path.unlink()
 
+    engine = OptimizationEngine(
+        base_config=config,
+        optimization_config=optimization,
+        evaluator=evaluator,
+        dataset_fingerprint=probe_dataset.data_fingerprint,
+        dataset_size=probe_dataset.bar_count,
+        timestamps=timestamps,
+    )
     try:
-        result = OptimizationEngine(
-            base_config=config,
-            optimization_config=optimization,
-            evaluator=evaluator,
-            dataset_fingerprint=probe.dataset.data_fingerprint,
-            dataset_size=probe.dataset.bar_count,
-            timestamps=timestamps,
-        ).run()
+        result = engine.run()
         artifacts = export_optimization_result(result, output)
     finally:
         shutil.rmtree(trial_directory, ignore_errors=True)
     return HedgeOptimizationRun(
         result=result,
         artifacts=artifacts,
-        dataset_pair=probe.dataset.pair,
-        dataset_timeframe=probe.dataset.timeframe,
-        dataset_start=probe.dataset.start,
-        dataset_end=probe.dataset.end,
-        dataset_bar_count=probe.dataset.bar_count,
+        dataset_pair=probe_dataset.pair,
+        dataset_timeframe=probe_dataset.timeframe,
+        dataset_start=probe_dataset.start,
+        dataset_end=probe_dataset.end,
+        dataset_bar_count=probe_dataset.bar_count,
+        parallel_backend=engine.parallel_backend,
+        peak_workers=engine.peak_workers,
+        resource_samples=tuple(engine.resource_samples),
     )

@@ -631,9 +631,7 @@ class BinanceUSDMExecutionAdapter(ExchangeExecutionPort):
 
     def _exchange_order_id_map(self, symbol: str) -> dict[str, str]:
         result: dict[str, str] = {}
-        for order in self._store.list_orders():
-            if order.intent.symbol != symbol:
-                continue
+        for order in self._store.list_orders(symbol=symbol):
             exchange_id = order.lifecycle.exchange_order_id
             if exchange_id:
                 result[str(exchange_id)] = order.client_order_id

@@ -56,7 +56,7 @@ def test_gated_stub_is_definitive_rejection_not_unknown_lock() -> None:
             quantity=Decimal("0.1"),
             idempotency_key="stub-disabled",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("3000"),
+            limit_price=Decimal(3000),
         )
     )
     assert result.order.lifecycle.status is OrderState.REJECTED

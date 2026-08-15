@@ -32,7 +32,7 @@ def base():
 def test_valid_p2_config() -> None:
     result = validate_hedge_config(base())
     assert result.account_id == "main"
-    assert result.max_gross_notional == Decimal("10000")
+    assert result.max_gross_notional == Decimal(10000)
     assert result.max_gross_exposure_ratio == Decimal("0.8")
 
 

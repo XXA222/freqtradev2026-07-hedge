@@ -51,14 +51,14 @@ def _runtime() -> HedgeRuntime:
         ),
         risk=AccountRiskSnapshot(
             account_id="hedge-main",
-            equity=Decimal("1000"),
-            wallet_balance=Decimal("997"),
-            available_balance=Decimal("900"),
-            initial_margin=Decimal("101"),
-            maintenance_margin=Decimal("10"),
-            gross_long_notional=Decimal("202"),
-            gross_short_notional=Decimal("101"),
-            net_notional=Decimal("101"),
+            equity=Decimal(1000),
+            wallet_balance=Decimal(997),
+            available_balance=Decimal(900),
+            initial_margin=Decimal(101),
+            maintenance_margin=Decimal(10),
+            gross_long_notional=Decimal(202),
+            gross_short_notional=Decimal(101),
+            net_notional=Decimal(101),
             liquidation_buffer_ratio=Decimal("0.30"),
         ),
         reconciliation_status="HEALTHY",
@@ -96,7 +96,7 @@ def _view() -> ReadonlyAccountView:
                 status="NEW",
                 original_quantity=Decimal("0.5"),
                 cumulative_filled_quantity=Decimal("0.1"),
-                average_price=Decimal("100"),
+                average_price=Decimal(100),
                 reduce_only=False,
                 update_time_ms=1,
                 observed_at=NOW,
@@ -129,7 +129,7 @@ def test_readonly_mode_execution_queries_fall_back_to_exchange_facts(monkeypatch
         account_id="hedge-main",
         symbol="ETH/USDT:USDT",
     )
-    assert summary.long_quantity == Decimal("2")
-    assert summary.short_quantity == Decimal("1")
-    assert summary.net_quantity == Decimal("1")
+    assert summary.long_quantity == Decimal(2)
+    assert summary.short_quantity == Decimal(1)
+    assert summary.net_quantity == Decimal(1)
     assert summary.pending_entry_quantity == Decimal("0.4")

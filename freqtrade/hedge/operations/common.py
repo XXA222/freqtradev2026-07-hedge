@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-ZERO=Decimal("0");ONE=Decimal("1")
+ZERO=Decimal(0);ONE=Decimal(1)
 
 def decimal_value(value:object,default:Decimal=ZERO,*,minimum:Decimal|None=None,maximum:Decimal|None=None)->Decimal:
     try: result=value if isinstance(value,Decimal) else Decimal(str(value))

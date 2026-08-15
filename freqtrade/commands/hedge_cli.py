@@ -294,7 +294,12 @@ def register_hedge_subcommands(  # noqa: C901
         manager._build_args(optionlist=backtest_options, parser=command)
         command.add_argument("--hedge-study-name", dest="hedge_study_name")
         command.add_argument("--hedge-trials", dest="hedge_trials", type=int)
-        command.add_argument("--hedge-workers", dest="hedge_workers", type=int)
+        command.add_argument(
+            "--hedge-workers",
+            dest="hedge_workers",
+            type=int,
+            help="Hedge worker policy: 0=adaptive, -1=resource max, 1=serial, N=upper bound.",
+        )
         command.add_argument(
             "--hedge-sampler",
             dest="hedge_sampler",
@@ -316,6 +321,13 @@ def register_hedge_subcommands(  # noqa: C901
         command.add_argument("--hedge-epochs", dest="hedge_epochs", type=int, default=10)
         command.add_argument(
             "--hedge-random-state", dest="hedge_random_state", type=int, default=42
+        )
+        command.add_argument(
+            "--hedge-workers",
+            dest="hedge_workers",
+            type=int,
+            default=0,
+            help="Hedge worker policy: 0=adaptive, -1=resource max, 1=serial, N=upper bound.",
         )
         command.add_argument("--hedge-hyperopt-directory", dest="hedge_hyperopt_directory")
         command.add_argument("--output", dest="hedge_native_output")

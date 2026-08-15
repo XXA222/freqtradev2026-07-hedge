@@ -116,8 +116,8 @@ from freqtrade.hedge.risk.portfolio import (
     build_risk_portfolio,
 )
 
-ZERO = Decimal("0")
-ONE = Decimal("1")
+ZERO = Decimal(0)
+ONE = Decimal(1)
 
 
 def _decimal(value: object, default: str) -> Decimal:
@@ -615,6 +615,39 @@ class IntegratedPaperHedgeApplication:
             include_terminal=False,
         )
 
+    def _prune_planner_order_map(self) -> None:
+        if not self._planner_order_to_client:
+            return
+        live_client_ids = {
+            order.client_order_id for order in self._active_execution_orders()
+        }
+        stale_planner_ids = [
+            planner_id
+            for planner_id, client_id in self._planner_order_to_client.items()
+            if client_id not in live_client_ids
+        ]
+        for planner_id in stale_planner_ids:
+            self._planner_order_to_client.pop(planner_id, None)
+
+    def collection_gauges(self) -> dict[str, int]:
+        """Return long-lived Paper runtime collection sizes for observability."""
+        gauges = {
+            "planner_order_map": len(self._planner_order_to_client),
+            "simulation_intents": len(self._simulation_intents),
+            "applied_account_events": len(self._applied_account_event_ids),
+        }
+        execution = self.execution
+        if execution is not None:
+            store_gauges = getattr(execution.store, "collection_gauges", None)
+            if callable(store_gauges):
+                gauges.update(store_gauges())
+            exchange_gauges = getattr(execution.exchange, "collection_gauges", None)
+            if callable(exchange_gauges):
+                gauges.update(
+                    {f"exchange_{key}": value for key, value in exchange_gauges().items()}
+                )
+        return gauges
+
     def _active_orders(self) -> tuple[ActiveOrder, ...]:
         rows: list[ActiveOrder] = []
         for order in self._active_execution_orders():
@@ -663,11 +696,14 @@ class IntegratedPaperHedgeApplication:
 
     def wallet(self, market: MarketSnapshot | None = None) -> WalletSnapshot:
         current_market = market or self.last_market
-        mark = Decimal("1") if current_market is None else current_market.mark
+        mark = Decimal(1) if current_market is None else current_market.mark
         long = self._leg(PositionSide.LONG)
         short = self._leg(PositionSide.SHORT)
+        fake_long = self._fake_leg(PositionSide.LONG)
+        fake_short = self._fake_leg(PositionSide.SHORT)
+        active_orders = self._active_orders()
         realized = long.realized_pnl + short.realized_pnl
-        fees = self._fake_leg(PositionSide.LONG).fees + self._fake_leg(PositionSide.SHORT).fees
+        fees = fake_long.fees + fake_short.fees
         unrealized = long.unrealized_pnl(mark) + short.unrealized_pnl(mark)
         balance = self.initial_balance + realized - fees + self._funding_balance_delta
         equity = balance + unrealized
@@ -675,7 +711,7 @@ class IntegratedPaperHedgeApplication:
         pending_margin = sum(
             (
                 item.notional / self.leverage
-                for item in self._active_orders()
+                for item in active_orders
                 if not item.reduce_only
             ),
             ZERO,
@@ -687,13 +723,13 @@ class IntegratedPaperHedgeApplication:
             available_balance=available,
             long=long,
             short=short,
-            active_orders=self._active_orders(),
+            active_orders=active_orders,
             leverage=self.leverage,
         )
 
     def risk_portfolio(self) -> RiskPortfolioSnapshot:
         market = self._cycle_market or self.last_market
-        mark = Decimal("1") if market is None else market.mark
+        mark = Decimal(1) if market is None else market.mark
         wallet = self.wallet(market)
         positions: list[PositionRiskLeg] = []
         for side, leg in (
@@ -937,17 +973,25 @@ class IntegratedPaperHedgeApplication:
 
     def _encode_active_execution_orders(self) -> list[dict[str, object]]:
         execution = self._execution()
-        snapshots = {
-            item.client_order_id: item for item in execution.exchange.list_orders()
-        }
-        rows: list[dict[str, object]] = []
-        for order in execution.store.list_orders():
-            if order.lifecycle.status not in {
+        active_orders = execution.store.list_orders(
+            account_id=self.account_id,
+            symbol=self.execution_symbol,
+            statuses=(
                 OrderState.ACKNOWLEDGED,
                 OrderState.PARTIAL,
                 OrderState.UNKNOWN,
-            }:
-                continue
+            ),
+            include_terminal=False,
+        )
+        snapshots = {}
+        for order in active_orders:
+            snapshot = execution.exchange.query_order(
+                client_order_id=order.client_order_id
+            )
+            if snapshot is not None:
+                snapshots[order.client_order_id] = snapshot
+        rows: list[dict[str, object]] = []
+        for order in active_orders:
             intent = order.intent
             snapshot = snapshots.get(order.client_order_id)
             rows.append(
@@ -1208,18 +1252,17 @@ class IntegratedPaperHedgeApplication:
     def _restore_authoritative_execution_orders(self) -> bool:
         execution = self._execution()
         restored_any = False
-        for order in execution.store.list_orders():
-            if (
-                order.intent.account_id != self.account_id
-                or raw_symbol(order.intent.symbol) != self.execution_symbol
-                or str(order.intent.metadata.get("exchange", "")).lower() != "paper"
-            ):
-                continue
-            if order.lifecycle.status not in {
+        for order in execution.store.list_orders(
+            account_id=self.account_id,
+            symbol=self.execution_symbol,
+            statuses=(
                 OrderState.ACKNOWLEDGED,
                 OrderState.PARTIAL,
                 OrderState.UNKNOWN,
-            }:
+            ),
+            include_terminal=False,
+        ):
+            if str(order.intent.metadata.get("exchange", "")).lower() != "paper":
                 continue
             approved = ApprovedOrderIntent(
                 intent=order.intent,
@@ -1946,6 +1989,7 @@ class IntegratedPaperHedgeApplication:
 
                 self.long_state = planning.long_state
                 self.short_state = planning.short_state
+                self._prune_planner_order_map()
                 result = PaperCycleResult(
                     planning=planning,
                     executions=tuple(executions),

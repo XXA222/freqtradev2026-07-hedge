@@ -84,9 +84,9 @@ class FillEvent(AccountEvent):
     order_id: str = ""
     action: IntentAction | None = None
     order_side: OrderSide | None = None
-    quantity: Decimal = Decimal("0")
-    price: Decimal = Decimal("0")
-    fee: Decimal = Decimal("0")
+    quantity: Decimal = Decimal(0)
+    price: Decimal = Decimal(0)
+    fee: Decimal = Decimal(0)
     fee_currency: str = "USDT"
     exchange_time: datetime = field(default_factory=lambda: datetime.now(UTC))
     observed_time: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -181,7 +181,7 @@ class FillEvent(AccountEvent):
 
         quantity = _decimal(values["quantity"], name="quantity", positive=True)
         price = _decimal(values["price"], name="price", positive=True)
-        fee = _decimal(values.get("fee", Decimal("0")), name="fee")
+        fee = _decimal(values.get("fee", Decimal(0)), name="fee")
         fee_currency = str(values.get("fee_currency", "USDT")).strip().upper()
         if not fee_currency or len(fee_currency) > 16:
             raise ValueError("fee_currency is invalid")
@@ -243,8 +243,8 @@ class FillEvent(AccountEvent):
         if isinstance(hedge_event_version, bool) or not isinstance(hedge_event_version, int) or hedge_event_version <= 0:
             raise ValueError("hedge_event_version must be positive")
         order_id = str(values.get("order_id", "")).strip()
-        quantity = _legacy_decimal(values.get("quantity", Decimal("0")), name="quantity")
-        price = _legacy_decimal(values.get("price", Decimal("0")), name="price")
+        quantity = _legacy_decimal(values.get("quantity", Decimal(0)), name="quantity")
+        price = _legacy_decimal(values.get("price", Decimal(0)), name="price")
         exchange_time = datetime.fromtimestamp(exchange_ms / 1000, tz=UTC)
         observed_time = datetime.fromtimestamp(observed_ms / 1000, tz=UTC)
 
@@ -263,7 +263,7 @@ class FillEvent(AccountEvent):
         object.__setattr__(self, "order_side", None)
         object.__setattr__(self, "quantity", quantity)
         object.__setattr__(self, "price", price)
-        object.__setattr__(self, "fee", Decimal("0"))
+        object.__setattr__(self, "fee", Decimal(0))
         object.__setattr__(self, "fee_currency", "USDT")
         object.__setattr__(self, "exchange_time", exchange_time)
         object.__setattr__(self, "observed_time", observed_time)

@@ -29,7 +29,7 @@ def unknown_order(quantity: str = "1") -> ExecutionOrder:
         quantity=Decimal(quantity),
         idempotency_key="resolver-order",
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("3000"),
+        limit_price=Decimal(3000),
     )
     now = datetime.now(UTC)
     lifecycle = (
@@ -133,8 +133,8 @@ def test_recent_fills_are_incremental_and_weighted() -> None:
     )
     resolved = UnknownOrderResolver(MultiSourceExchange(fills=fills)).resolve(order)
     assert resolved.status is OrderState.FILLED
-    assert resolved.filled_quantity == Decimal("1")
-    assert resolved.average_price == Decimal("3075")
+    assert resolved.filled_quantity == Decimal(1)
+    assert resolved.average_price == Decimal(3075)
 
 
 def test_duplicate_trade_ids_are_counted_once() -> None:
@@ -166,7 +166,7 @@ def test_overfill_is_capped_and_reported() -> None:
         snapshot(order, OrderState.PARTIAL, "0.7", "3100", "t2"),
     )
     resolved = UnknownOrderResolver(MultiSourceExchange(fills=fills)).resolve(order)
-    assert resolved.filled_quantity == Decimal("1")
+    assert resolved.filled_quantity == Decimal(1)
     assert resolved.status is OrderState.FILLED
     assert "capped_overfill" in resolved.reason
 
@@ -240,7 +240,7 @@ def test_more_complete_base_fact_keeps_authoritative_average_price() -> None:
 
     assert resolved.status is OrderState.CANCELED
     assert resolved.filled_quantity == Decimal("0.8")
-    assert resolved.average_price == Decimal("3050")
+    assert resolved.average_price == Decimal(3050)
 
 
 def test_canceled_zero_does_not_erase_partial_fill_from_open_orders() -> None:
@@ -255,7 +255,7 @@ def test_canceled_zero_does_not_erase_partial_fill_from_open_orders() -> None:
 
     assert resolved.status is OrderState.CANCELED
     assert resolved.filled_quantity == Decimal("0.8")
-    assert resolved.average_price == Decimal("3040")
+    assert resolved.average_price == Decimal(3040)
     assert resolver.last_result.source is ResolutionSource.MERGED
 
 

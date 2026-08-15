@@ -32,7 +32,7 @@ from freqtrade.hedge.exchange.symbol_codec import normalize_exchange_symbols
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_QUANTITY_TOLERANCE = Decimal("0")
+DEFAULT_QUANTITY_TOLERANCE = Decimal(0)
 DEFAULT_FINANCIAL_TOLERANCE = Decimal("0.00000001")
 DEFAULT_FILL_LOOKBACK = timedelta(hours=72)
 DEFAULT_HISTORY_OVERLAP = timedelta(minutes=5)

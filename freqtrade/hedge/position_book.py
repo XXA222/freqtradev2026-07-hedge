@@ -18,12 +18,12 @@ class PositionRecord:
     symbol: str
     position_side: PositionSide
     amount: Decimal
-    entry_price: Decimal = Decimal("0")
+    entry_price: Decimal = Decimal(0)
     mark_price: Decimal | None = None
     liquidation_price: Decimal | None = None
-    leverage: Decimal = Decimal("1")
-    collateral: Decimal = Decimal("0")
-    unrealized_pnl: Decimal = Decimal("0")
+    leverage: Decimal = Decimal(1)
+    collateral: Decimal = Decimal(0)
+    unrealized_pnl: Decimal = Decimal(0)
     margin_mode: str = "cross"
     source: str = "unknown"
     exchange: str = "unknown"
@@ -201,8 +201,8 @@ class SideAwarePositionBook:
             account_id=account_id,
             exchange=exchange,
         )
-        return (long_record.amount if long_record else Decimal("0")) - (
-            short_record.amount if short_record else Decimal("0")
+        return (long_record.amount if long_record else Decimal(0)) - (
+            short_record.amount if short_record else Decimal(0)
         )
 
     def gross_amount(
@@ -217,8 +217,8 @@ class SideAwarePositionBook:
             account_id=account_id,
             exchange=exchange,
         )
-        return (long_record.amount if long_record else Decimal("0")) + (
-            short_record.amount if short_record else Decimal("0")
+        return (long_record.amount if long_record else Decimal(0)) + (
+            short_record.amount if short_record else Decimal(0)
         )
 
     def hedge_ratio(
@@ -233,10 +233,10 @@ class SideAwarePositionBook:
             account_id=account_id,
             exchange=exchange,
         )
-        long_amount = long_record.amount if long_record else Decimal("0")
-        short_amount = short_record.amount if short_record else Decimal("0")
+        long_amount = long_record.amount if long_record else Decimal(0)
+        short_amount = short_record.amount if short_record else Decimal(0)
         if long_amount == 0 and short_amount == 0:
-            return Decimal("0")
+            return Decimal(0)
         if long_amount == 0:
             return None
         return short_amount / long_amount

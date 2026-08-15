@@ -22,7 +22,7 @@ def test_position_key_is_canonical_and_immutable() -> None:
 
 def test_contract_quantities_are_finite_decimals() -> None:
     key = PositionKey("binance", "main", "ETH/USDT:USDT", "SHORT")
-    record = PositionRecord(key, "1.25", Decimal("2000"), 1)
+    record = PositionRecord(key, "1.25", Decimal(2000), 1)
     assert record.quantity == Decimal("1.25")
     with pytest.raises(HedgeContractError):
         PositionRecord(key, "NaN", "1", 1)
@@ -35,7 +35,7 @@ def test_event_identity_time_and_version_are_public() -> None:
     )
     assert event.hedge_event_version == HEDGE_EVENT_VERSION
     assert (fill.quantity, fill.price, ReadinessState.READY) == (
-        Decimal("1"),
-        Decimal("2"),
+        Decimal(1),
+        Decimal(2),
         "READY",
     )

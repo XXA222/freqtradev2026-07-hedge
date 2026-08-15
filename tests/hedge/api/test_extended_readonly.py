@@ -31,7 +31,7 @@ class BaseQuery:
     def positions(self, *, account_id: str, symbol: str):
         return DualLegPositionsResponse(account_id=account_id, symbol=symbol, legs=(), as_of=datetime.now(UTC))
     def risk(self, *, account_id: str):
-        return RiskStatusSchema(account_id=account_id, equity=Decimal("1000"), gross_notional=Decimal("0"), gross_exposure_ratio=Decimal("0"), margin_utilization=Decimal("0"), liquidation_buffer_ratio=Decimal("1"))
+        return RiskStatusSchema(account_id=account_id, equity=Decimal(1000), gross_notional=Decimal(0), gross_exposure_ratio=Decimal(0), margin_utilization=Decimal(0), liquidation_buffer_ratio=Decimal(1))
     def reconciliation(self, *, account_id: str):
         return ReconciliationStatusSchema(status="HEALTHY")
     def readiness(self, *, account_id: str):
@@ -54,10 +54,10 @@ def test_pair_summary_and_events_routes() -> None:
             symbol="ETHUSDT",
             position_side=PositionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key="open",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("100"),
+            limit_price=Decimal(100),
         )
     )
     snapshot = runtime.exchange.fill_order(

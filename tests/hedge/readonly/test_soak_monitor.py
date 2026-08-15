@@ -33,9 +33,9 @@ def observation(
         full,
         Decimal(wallet),
         Decimal(funding),
-        Decimal("0"),
-        Decimal("0"),
-        Decimal("0"),
+        Decimal(0),
+        Decimal(0),
+        Decimal(0),
         funding_period_observed=funding_period_observed,
     )
 
@@ -161,11 +161,11 @@ def test_soak_rejects_nonfinite_runtime_values(tmp_path):
             math.nan,
             0,
             0,
-            Decimal("0"),
-            Decimal("0"),
-            Decimal("0"),
-            Decimal("0"),
-            Decimal("0"),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
         )
     with pytest.raises(ValueError, match="expected_interval"):
         SoakMonitor(
@@ -208,11 +208,11 @@ def test_soak_rejects_non_boolean_funding_observation(tmp_path):
             0.0,
             0,
             0,
-            Decimal("0"),
-            Decimal("0"),
-            Decimal("0"),
-            Decimal("0"),
-            Decimal("0"),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
             funding_period_observed=1,
         )
 
@@ -249,19 +249,19 @@ def test_service_soak_provider_builds_deltas_from_runtime_and_repository():
         def __init__(self):
             self.values = [
                 SoakAccountingTotals(
-                    Decimal("1000"),
-                    Decimal("10"),
-                    Decimal("20"),
-                    Decimal("2"),
-                    Decimal("5"),
+                    Decimal(1000),
+                    Decimal(10),
+                    Decimal(20),
+                    Decimal(2),
+                    Decimal(5),
                     1,
                 ),
                 SoakAccountingTotals(
-                    Decimal("1014"),
-                    Decimal("12"),
-                    Decimal("30"),
-                    Decimal("3"),
-                    Decimal("8"),
+                    Decimal(1014),
+                    Decimal(12),
+                    Decimal(30),
+                    Decimal(3),
+                    Decimal(8),
                     2,
                 ),
             ]
@@ -297,14 +297,14 @@ def test_service_soak_provider_builds_deltas_from_runtime_and_repository():
     clock.advance(60)
     second = asyncio.run(provider.read_observation())
 
-    assert first.wallet_delta == Decimal("0")
-    assert second.wallet_delta == Decimal("14")
-    assert second.funding_income == Decimal("2")
-    assert second.realized_pnl == Decimal("10")
-    assert second.commissions == Decimal("1")
-    assert second.transfers == Decimal("3")
+    assert first.wallet_delta == Decimal(0)
+    assert second.wallet_delta == Decimal(14)
+    assert second.funding_income == Decimal(2)
+    assert second.realized_pnl == Decimal(10)
+    assert second.commissions == Decimal(1)
+    assert second.transfers == Decimal(3)
     assert second.funding_period_observed
-    assert second.unexplained_drift == Decimal("0")
+    assert second.unexplained_drift == Decimal(0)
 
 
 def test_funding_period_is_counted_only_when_event_counter_advances(tmp_path):
@@ -320,16 +320,16 @@ def test_funding_period_is_counted_only_when_event_counter_advances(tmp_path):
         def __init__(self):
             self.values = [
                 SoakAccountingTotals(
-                    Decimal("1000"), Decimal("0"), Decimal("0"),
-                    Decimal("0"), Decimal("0"), 0,
+                    Decimal(1000), Decimal(0), Decimal(0),
+                    Decimal(0), Decimal(0), 0,
                 ),
                 SoakAccountingTotals(
-                    Decimal("1001"), Decimal("1"), Decimal("0"),
-                    Decimal("0"), Decimal("0"), 1,
+                    Decimal(1001), Decimal(1), Decimal(0),
+                    Decimal(0), Decimal(0), 1,
                 ),
                 SoakAccountingTotals(
-                    Decimal("1001"), Decimal("1"), Decimal("0"),
-                    Decimal("0"), Decimal("0"), 1,
+                    Decimal(1001), Decimal(1), Decimal(0),
+                    Decimal(0), Decimal(0), 1,
                 ),
             ]
 
@@ -386,8 +386,8 @@ def test_soak_baseline_can_be_reloaded_after_process_restart(tmp_path):
     class AccountingSource:
         async def read_soak_accounting_totals(self, account_id):
             return SoakAccountingTotals(
-                Decimal("1010"), Decimal("2"), Decimal("10"),
-                Decimal("1"), Decimal("0"), 2,
+                Decimal(1010), Decimal(2), Decimal(10),
+                Decimal(1), Decimal(0), 2,
             )
 
     class Service:
@@ -426,6 +426,6 @@ def test_soak_baseline_can_be_reloaded_after_process_restart(tmp_path):
 
     observation_value = asyncio.run(provider.read_observation())
 
-    assert observation_value.wallet_delta == Decimal("10")
-    assert observation_value.funding_income == Decimal("1")
+    assert observation_value.wallet_delta == Decimal(10)
+    assert observation_value.funding_income == Decimal(1)
     assert observation_value.funding_event_count_delta == 1

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
@@ -113,12 +113,13 @@ def _optional_text(value: str | None, *, field_name: str, limit: int) -> str | N
 @dataclass(frozen=True, slots=True)
 class OrderLifecycle:
     status: OrderState = OrderState.PREPARED
-    filled_quantity: Decimal = Decimal("0")
+    filled_quantity: Decimal = Decimal(0)
     average_price: Decimal | None = None
     exchange_order_id: str | None = None
     version: int = 0
     updated_at: datetime = _INITIAL_TIME
     reason: str | None = None
+    _terminal: bool = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         try:
@@ -151,6 +152,7 @@ class OrderLifecycle:
         if status is OrderState.REJECTED and filled != 0:
             raise InvalidOrderTransition("REJECTED requires filled == 0")
         object.__setattr__(self, "status", status)
+        object.__setattr__(self, "_terminal", status in TERMINAL_STATES)
         object.__setattr__(self, "filled_quantity", filled)
         object.__setattr__(self, "average_price", average)
         object.__setattr__(self, "exchange_order_id", exchange_order_id)
@@ -251,7 +253,7 @@ class OrderLifecycle:
             raise InvalidOrderTransition("filled quantity is outside [0, ordered_quantity]")
         if target_state is OrderState.ACKNOWLEDGED and next_filled != 0:
             raise InvalidOrderTransition("ACKNOWLEDGED requires filled == 0")
-        if target_state is OrderState.PARTIAL and not (Decimal("0") < next_filled < ordered):
+        if target_state is OrderState.PARTIAL and not (Decimal(0) < next_filled < ordered):
             raise InvalidOrderTransition("PARTIAL requires 0 < filled < ordered")
         if target_state is OrderState.FILLED and next_filled != ordered:
             raise InvalidOrderTransition("FILLED requires filled == ordered")
@@ -286,4 +288,4 @@ class OrderLifecycle:
 
     @property
     def terminal(self) -> bool:
-        return self.status in TERMINAL_STATES
+        return self._terminal

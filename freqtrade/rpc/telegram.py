@@ -11,7 +11,7 @@ import re
 from collections.abc import Callable, Coroutine
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import partial, wraps
 from html import escape
 from itertools import chain
@@ -1144,7 +1144,9 @@ class Telegram(RPCHandler):
                         direction = arg
                         context.args.pop(0)  # Remove direction from args
                 timescale = int(context.args[0]) - 1
-                today_start = datetime.combine(date.today(), datetime.min.time())
+                # Trade timestamps are stored in UTC.  Using the host's local date here
+                # drops valid UTC-today trades around midnight in positive-offset zones.
+                today_start = datetime.combine(datetime.now(tz=UTC).date(), datetime.min.time())
                 start_date = today_start - timedelta(days=timescale)
         except (TypeError, ValueError, IndexError):
             pass

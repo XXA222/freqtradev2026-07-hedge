@@ -7,6 +7,7 @@ idempotency result and fake-exchange snapshot before the next matcher cycle.
 
 from __future__ import annotations
 
+import logging
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,8 @@ from freqtrade.persistence.hedge_models import (
     StrategySideState,
 )
 
+
+logger = logging.getLogger(__name__)
 
 PAPER_STATE_SCHEMA_VERSION = 2
 
@@ -94,7 +97,11 @@ class JsonPaperStateStore:
                 try:
                     temporary.unlink(missing_ok=True)
                 except OSError:
-                    pass
+                    logger.debug(
+                        "Unable to remove temporary paper-state file %s",
+                        temporary,
+                        exc_info=True,
+                    )
 
 
 class SqlPaperStateStore:

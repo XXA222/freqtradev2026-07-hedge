@@ -73,7 +73,7 @@ def test_cancel_replace_waits_for_confirmed_cancel() -> None:
             quantity=Decimal("0.1"),
             idempotency_key="original",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("3000"),
+            limit_price=Decimal(3000),
         )
     )
     exchange.queue_snapshot(OrderState.ACKNOWLEDGED)
@@ -85,7 +85,7 @@ def test_cancel_replace_waits_for_confirmed_cancel() -> None:
         quantity=Decimal("0.1"),
         idempotency_key="replacement",
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("2990"),
+        limit_price=Decimal(2990),
     )
     result = CancelReplaceCoordinator(service).execute(
         original_client_order_id=original.order.client_order_id,

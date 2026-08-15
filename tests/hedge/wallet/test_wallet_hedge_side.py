@@ -36,9 +36,9 @@ def test_side_aware_exit_and_collateral() -> None:
 
 
 def test_gross_and_net_exposure() -> None:
-    exposure = wallets().get_hedge_exposure("ETH/USDT:USDT", equity=Decimal("10000"))
-    assert exposure.gross_total_notional == Decimal("6000")
-    assert exposure.net_notional == Decimal("2000")
+    exposure = wallets().get_hedge_exposure("ETH/USDT:USDT", equity=Decimal(10000))
+    assert exposure.gross_total_notional == Decimal(6000)
+    assert exposure.net_notional == Decimal(2000)
     assert exposure.gross_exposure_ratio == Decimal("0.6")
 
 

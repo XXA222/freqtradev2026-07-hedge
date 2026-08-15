@@ -245,7 +245,7 @@ class PositionLockManager:
             self._prune_expired_locked(now)
             return sum(
                 (record.quantity for record in self._reservations.get(key, {}).values()),
-                Decimal("0"),
+                Decimal(0),
             )
 
     def reserve_reduce(
@@ -257,7 +257,7 @@ class PositionLockManager:
         requested_quantity: Decimal,
         exchange: str = "binance",
         confirmed_quantity: Decimal,
-        existing_pending_reduce_quantity: Decimal = Decimal("0"),
+        existing_pending_reduce_quantity: Decimal = Decimal(0),
         timeout_seconds: float | None = None,
         pre_reservation_check: Callable[[], None] | None = None,
     ) -> ReduceReservation:

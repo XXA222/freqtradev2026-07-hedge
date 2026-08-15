@@ -68,10 +68,10 @@ class SignalSnapshot:
     model_version: str
     reason: str
     target_net_ratio: Decimal | None = None
-    confidence: Decimal = Decimal("1")
-    risk_scale: Decimal = Decimal("1")
-    long_exposure_scale: Decimal = Decimal("1")
-    short_exposure_scale: Decimal = Decimal("1")
+    confidence: Decimal = Decimal(1)
+    risk_scale: Decimal = Decimal(1)
+    long_exposure_scale: Decimal = Decimal(1)
+    short_exposure_scale: Decimal = Decimal(1)
     allow_new_risk: bool = True
     regime: str = "UNSPECIFIED"
     strategy_reason: str = ""
@@ -114,14 +114,14 @@ class HedgeSignalProviderPort(Protocol):
 
 def _decimal_score(value: object) -> Decimal:
     if value is None:
-        return Decimal("0")
+        return Decimal(0)
     try:
         result = Decimal(str(value))
     except (ArithmeticError, TypeError, ValueError):
-        return Decimal("0")
+        return Decimal(0)
     if not result.is_finite():
-        return Decimal("0")
-    return min(Decimal("1"), max(Decimal("0"), result))
+        return Decimal(0)
+    return min(Decimal(1), max(Decimal(0), result))
 
 
 def _exact_decimal(value: object, *, field: str, optional: bool = False) -> Decimal | None:
@@ -318,8 +318,8 @@ class FreqtradeStrategySignalProvider:
             timeframe=timeframe,
             candle_close_time=now,
             feature_timestamp=now,
-            long_score=Decimal("0"),
-            short_score=Decimal("0"),
+            long_score=Decimal(0),
+            short_score=Decimal(0),
             target_net=None,
             model_version="none",
             reason="NO_ANALYZED_DATA",

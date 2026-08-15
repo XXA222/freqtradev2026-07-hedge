@@ -20,15 +20,15 @@ from freqtrade.hedge.planning.target import calculate_target
 NOW = datetime(2026, 7, 26, tzinfo=timezone.utc)
 
 
-def wallet(long_qty=Decimal("0"), short_qty=Decimal("0"), active=()):
+def wallet(long_qty=Decimal(0), short_qty=Decimal(0), active=()):
     return WalletSnapshot(
-        balance=Decimal("1000"),
-        equity=Decimal("1000"),
-        available_balance=Decimal("1000"),
-        long=LegPosition(PositionSide.LONG, long_qty, Decimal("100") if long_qty else Decimal("0"), long_qty, Decimal("100") if long_qty else Decimal("0"), Decimal("0"), Decimal("0")),
-        short=LegPosition(PositionSide.SHORT, short_qty, Decimal("100") if short_qty else Decimal("0"), short_qty, Decimal("100") if short_qty else Decimal("0"), Decimal("0"), Decimal("0")),
+        balance=Decimal(1000),
+        equity=Decimal(1000),
+        available_balance=Decimal(1000),
+        long=LegPosition(PositionSide.LONG, long_qty, Decimal(100) if long_qty else Decimal(0), long_qty, Decimal(100) if long_qty else Decimal(0), Decimal(0), Decimal(0)),
+        short=LegPosition(PositionSide.SHORT, short_qty, Decimal(100) if short_qty else Decimal(0), short_qty, Decimal(100) if short_qty else Decimal(0), Decimal(0), Decimal(0)),
         active_orders=active,
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
 
 
@@ -39,7 +39,7 @@ def context(**kwargs):
             NOW,
             Decimal("99.9"),
             Decimal("100.1"),
-            Decimal("100"),
+            Decimal(100),
             Decimal("0.1"),
             Decimal("0.001"),
         ),
@@ -47,8 +47,8 @@ def context(**kwargs):
         "config": PlannerConfig(cooldown_seconds=0),
         "long_state": StrategyLegState(PositionSide.LONG),
         "short_state": StrategyLegState(PositionSide.SHORT),
-        "long_signal": Decimal("1"),
-        "short_signal": Decimal("1"),
+        "long_signal": Decimal(1),
+        "short_signal": Decimal(1),
     }
     unknown = set(kwargs) - set(values)
     if unknown:
@@ -87,7 +87,7 @@ def test_projected_gross_never_exceeds_cap():
 
 def test_unstuck_is_reduce_only_and_reduces_risk():
     cfg = PlannerConfig(unstuck_trigger_gross_exposure=Decimal("0.10"), cooldown_seconds=0)
-    result = PureHedgePlanner().plan(context(config=cfg, wallet=wallet(Decimal("2"), Decimal("2"))))
+    result = PureHedgePlanner().plan(context(config=cfg, wallet=wallet(Decimal(2), Decimal(2))))
     assert result.ideal_orders
     assert all(item.reduce_only for item in result.ideal_orders)
     assert all(item.action is IntentAction.UNSTUCK for item in result.ideal_orders)
@@ -143,7 +143,7 @@ def test_disabled_short_side_produces_no_short_orders():
 def test_entry_cooldown_blocks_reentry_plans():
     state = StrategyLegState(PositionSide.LONG, last_entry_at=NOW)
     cfg = PlannerConfig(cooldown_seconds=300)
-    result = PureHedgePlanner().plan(context(long_state=state, config=cfg, wallet=wallet(Decimal("0.2"), Decimal("0"))))
+    result = PureHedgePlanner().plan(context(long_state=state, config=cfg, wallet=wallet(Decimal("0.2"), Decimal(0))))
     assert all(item.reduce_only for item in result.ideal_orders if item.position_side is PositionSide.LONG)
     assert "LONG:entry_cooldown" in result.diagnostics
 
@@ -152,16 +152,16 @@ def test_close_grid_preserves_core_floor():
     cfg = PlannerConfig(core_wallet_exposure_long=Decimal("0.20"), tactical_wallet_exposure_long=Decimal("0.10"), core_min_fraction=Decimal("0.75"), cooldown_seconds=0)
     long_leg = LegPosition(
         PositionSide.LONG,
-        Decimal("3"), Decimal("100"),
-        Decimal("2"), Decimal("100"),
-        Decimal("1"), Decimal("100"),
+        Decimal(3), Decimal(100),
+        Decimal(2), Decimal(100),
+        Decimal(1), Decimal(100),
     )
     custom_wallet = WalletSnapshot(
-        balance=Decimal("1000"), equity=Decimal("1000"), available_balance=Decimal("800"),
-        long=long_leg, short=LegPosition(PositionSide.SHORT), leverage=Decimal("3"),
+        balance=Decimal(1000), equity=Decimal(1000), available_balance=Decimal(800),
+        long=long_leg, short=LegPosition(PositionSide.SHORT), leverage=Decimal(3),
     )
     result = PureHedgePlanner().plan(context(config=cfg, wallet=custom_wallet))
-    reductions = sum((item.quantity for item in result.ideal_orders if item.position_side is PositionSide.LONG and item.reduce_only), Decimal("0"))
+    reductions = sum((item.quantity for item in result.ideal_orders if item.position_side is PositionSide.LONG and item.reduce_only), Decimal(0))
     target_core = calculate_target(context(config=cfg, wallet=custom_wallet), PositionSide.LONG).core_quantity
     assert long_leg.quantity - reductions >= target_core * cfg.core_min_fraction
 
@@ -179,7 +179,7 @@ def test_jitter_protection_compares_order_type_and_time_in_force():
         unstuck_trigger_gross_exposure=Decimal("0.10"),
         cooldown_seconds=0,
     )
-    base_context = context(config=cfg, wallet=wallet(Decimal("2"), Decimal("0")))
+    base_context = context(config=cfg, wallet=wallet(Decimal(2), Decimal(0)))
     desired = next(
         item
         for item in PureHedgePlanner().plan(base_context).ideal_orders
@@ -200,7 +200,7 @@ def test_jitter_protection_compares_order_type_and_time_in_force():
         time_in_force=TimeInForce.GTC,
     )
     result = PureHedgePlanner().plan(
-        context(config=cfg, wallet=wallet(Decimal("2"), Decimal("0"), (stale,)))
+        context(config=cfg, wallet=wallet(Decimal(2), Decimal(0), (stale,)))
     )
     assert "stale-limit" in result.cancel_order_ids
     assert any(item.order_type is OrderType.MARKET for item in result.submit_orders)
@@ -213,7 +213,7 @@ def test_foreign_symbol_order_is_not_cancelled_by_symbol_planner():
         position_side=PositionSide.LONG,
         order_side=OrderSide.BUY,
         quantity=Decimal("0.01"),
-        price=Decimal("50000"),
+        price=Decimal(50000),
         reduce_only=False,
         bucket=PositionBucket.CORE,
         action=IntentAction.OPEN,
@@ -226,12 +226,12 @@ def test_foreign_symbol_order_is_not_cancelled_by_symbol_planner():
 
 def test_margin_budget_blocks_new_entry_orders():
     blocked_wallet = WalletSnapshot(
-        balance=Decimal("1000"),
-        equity=Decimal("1000"),
-        available_balance=Decimal("0"),
+        balance=Decimal(1000),
+        equity=Decimal(1000),
+        available_balance=Decimal(0),
         long=LegPosition(PositionSide.LONG),
         short=LegPosition(PositionSide.SHORT),
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
     result = PureHedgePlanner().plan(context(wallet=blocked_wallet))
     assert not [item for item in result.ideal_orders if not item.reduce_only]
@@ -240,7 +240,7 @@ def test_margin_budget_blocks_new_entry_orders():
 
 def test_invalid_initial_min_notional_is_reallocated_to_grid():
     cfg = PlannerConfig(
-        core_wallet_exposure_long=Decimal("0"),
+        core_wallet_exposure_long=Decimal(0),
         tactical_wallet_exposure_long=Decimal("0.30"),
         long_enabled=True,
         short_enabled=False,
@@ -254,16 +254,16 @@ def test_invalid_initial_min_notional_is_reallocated_to_grid():
             NOW,
             Decimal("99.9"),
             Decimal("100.1"),
-            Decimal("100"),
+            Decimal(100),
             Decimal("0.1"),
             Decimal("0.001"),
             Decimal("0.001"),
-            Decimal("50"),
+            Decimal(50),
         ),
         wallet=wallet(),
         config=cfg,
-        long_signal=Decimal("1"),
-        short_signal=Decimal("0"),
+        long_signal=Decimal(1),
+        short_signal=Decimal(0),
     )
     result = PureHedgePlanner().plan(ctx)
     long_entries = [
@@ -272,35 +272,35 @@ def test_invalid_initial_min_notional_is_reallocated_to_grid():
         if item.position_side is PositionSide.LONG and not item.reduce_only
     ]
     assert long_entries
-    assert all(item.notional >= Decimal("50") for item in long_entries)
-    assert sum((item.quantity for item in long_entries), Decimal("0")) >= Decimal("2.99")
+    assert all(item.notional >= Decimal(50) for item in long_entries)
+    assert sum((item.quantity for item in long_entries), Decimal(0)) >= Decimal("2.99")
 
 
 def test_close_grid_uses_partial_reduce_fraction():
     cfg = PlannerConfig(
-        core_wallet_exposure_long=Decimal("0"),
-        tactical_wallet_exposure_long=Decimal("0"),
+        core_wallet_exposure_long=Decimal(0),
+        tactical_wallet_exposure_long=Decimal(0),
         tactical_reduce_fraction=Decimal("0.25"),
-        core_min_fraction=Decimal("0"),
+        core_min_fraction=Decimal(0),
         take_profit_layers=2,
         cooldown_seconds=0,
     )
     long_leg = LegPosition(
         PositionSide.LONG,
-        Decimal("4"),
-        Decimal("100"),
-        Decimal("0"),
-        Decimal("0"),
-        Decimal("4"),
-        Decimal("100"),
+        Decimal(4),
+        Decimal(100),
+        Decimal(0),
+        Decimal(0),
+        Decimal(4),
+        Decimal(100),
     )
     custom_wallet = WalletSnapshot(
-        balance=Decimal("1000"),
-        equity=Decimal("1000"),
-        available_balance=Decimal("800"),
+        balance=Decimal(1000),
+        equity=Decimal(1000),
+        available_balance=Decimal(800),
         long=long_leg,
         short=LegPosition(PositionSide.SHORT),
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
     result = PureHedgePlanner().plan(context(config=cfg, wallet=custom_wallet))
     reductions = sum(
@@ -309,9 +309,9 @@ def test_close_grid_uses_partial_reduce_fraction():
             for item in result.ideal_orders
             if item.position_side is PositionSide.LONG and item.reduce_only
         ),
-        Decimal("0"),
+        Decimal(0),
     )
-    assert reductions == Decimal("1")
+    assert reductions == Decimal(1)
 
 
 def test_semantically_equal_decimal_values_share_intent_id():
@@ -357,8 +357,8 @@ def test_active_order_rejects_inconsistent_side_and_reduce_only():
             symbol="BTC/USDT:USDT",
             position_side=PositionSide.LONG,
             order_side=OrderSide.BUY,
-            quantity=Decimal("1"),
-            price=Decimal("100"),
+            quantity=Decimal(1),
+            price=Decimal(100),
             reduce_only=True,
             bucket=PositionBucket.TACTICAL,
             action=IntentAction.REDUCE,
@@ -370,7 +370,7 @@ def test_trailing_rebound_must_be_strictly_below_one():
     import pytest
 
     with pytest.raises(ValueError, match="less than one"):
-        PlannerConfig(trailing_rebound=Decimal("1"))
+        PlannerConfig(trailing_rebound=Decimal(1))
 
 
 def test_active_entry_beyond_max_layer_is_cancelled():
@@ -380,7 +380,7 @@ def test_active_entry_beyond_max_layer_is_cancelled():
         position_side=PositionSide.LONG,
         order_side=OrderSide.BUY,
         quantity=Decimal("0.1"),
-        price=Decimal("90"),
+        price=Decimal(90),
         reduce_only=False,
         bucket=PositionBucket.CORE,
         action=IntentAction.INCREASE,
@@ -390,13 +390,13 @@ def test_active_entry_beyond_max_layer_is_cancelled():
     )
     ctx = context(
         wallet=WalletSnapshot(
-            balance=Decimal("1000"),
-            equity=Decimal("1000"),
-            available_balance=Decimal("1000"),
+            balance=Decimal(1000),
+            equity=Decimal(1000),
+            available_balance=Decimal(1000),
             long=LegPosition(PositionSide.LONG),
             short=LegPosition(PositionSide.SHORT),
             active_orders=(active,),
-            leverage=Decimal("3"),
+            leverage=Decimal(3),
         ),
         config=PlannerConfig(max_grid_layers=2, cooldown_seconds=0),
     )
@@ -408,29 +408,29 @@ def test_active_entry_beyond_max_layer_is_cancelled():
 def test_unstuck_respects_minimum_notional():
     long = LegPosition(
         side=PositionSide.LONG,
-        quantity=Decimal("1"),
-        average_price=Decimal("100"),
-        core_quantity=Decimal("0"),
-        core_average_price=Decimal("0"),
-        tactical_quantity=Decimal("1"),
-        tactical_average_price=Decimal("100"),
+        quantity=Decimal(1),
+        average_price=Decimal(100),
+        core_quantity=Decimal(0),
+        core_average_price=Decimal(0),
+        tactical_quantity=Decimal(1),
+        tactical_average_price=Decimal(100),
     )
     ctx = PlanningContext(
         market=MarketSnapshot(
             symbol="BTC/USDT:USDT",
             timestamp=NOW,
-            bid=Decimal("100"),
+            bid=Decimal(100),
             ask=Decimal("100.01"),
-            mark=Decimal("100"),
-            min_notional=Decimal("1000"),
+            mark=Decimal(100),
+            min_notional=Decimal(1000),
         ),
         wallet=WalletSnapshot(
-            balance=Decimal("10"),
-            equity=Decimal("10"),
-            available_balance=Decimal("0"),
+            balance=Decimal(10),
+            equity=Decimal(10),
+            available_balance=Decimal(0),
             long=long,
             short=LegPosition(PositionSide.SHORT),
-            leverage=Decimal("3"),
+            leverage=Decimal(3),
         ),
         config=PlannerConfig(
             short_enabled=False,
@@ -438,8 +438,8 @@ def test_unstuck_respects_minimum_notional():
             unstuck_reduce_fraction=Decimal("0.5"),
             cooldown_seconds=0,
         ),
-        long_signal=Decimal("1"),
-        short_signal=Decimal("0"),
+        long_signal=Decimal(1),
+        short_signal=Decimal(0),
     )
     result = PureHedgePlanner().plan(ctx)
     assert all(order.action is not IntentAction.UNSTUCK for order in result.ideal_orders)
@@ -448,30 +448,30 @@ def test_unstuck_respects_minimum_notional():
 def test_tactical_take_profit_uses_tactical_cost_basis():
     long_leg = LegPosition(
         side=PositionSide.LONG,
-        quantity=Decimal("10"),
-        average_price=Decimal("88"),
-        core_quantity=Decimal("8"),
-        core_average_price=Decimal("80"),
-        tactical_quantity=Decimal("2"),
-        tactical_average_price=Decimal("120"),
+        quantity=Decimal(10),
+        average_price=Decimal(88),
+        core_quantity=Decimal(8),
+        core_average_price=Decimal(80),
+        tactical_quantity=Decimal(2),
+        tactical_average_price=Decimal(120),
     )
     custom_wallet = WalletSnapshot(
-        balance=Decimal("1000"),
-        equity=Decimal("1000"),
-        available_balance=Decimal("1000"),
+        balance=Decimal(1000),
+        equity=Decimal(1000),
+        available_balance=Decimal(1000),
         long=long_leg,
         short=LegPosition(PositionSide.SHORT),
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
     cfg = PlannerConfig(
         short_enabled=False,
         core_wallet_exposure_long=Decimal("0.8"),
         tactical_wallet_exposure_long=Decimal("0.2"),
-        max_wallet_exposure_long=Decimal("1"),
-        max_gross_wallet_exposure=Decimal("1"),
+        max_wallet_exposure_long=Decimal(1),
+        max_gross_wallet_exposure=Decimal(1),
         take_profit_layers=1,
-        tactical_reduce_fraction=Decimal("1"),
-        unstuck_trigger_gross_exposure=Decimal("2"),
+        tactical_reduce_fraction=Decimal(1),
+        unstuck_trigger_gross_exposure=Decimal(2),
         cooldown_seconds=0,
     )
     result = PureHedgePlanner().plan(context(config=cfg, wallet=custom_wallet))
@@ -499,7 +499,7 @@ def test_replacement_is_debounced_for_young_semantically_matching_order():
         position_side=desired.position_side,
         order_side=desired.order_side,
         quantity=desired.quantity,
-        price=desired.price + Decimal("5"),
+        price=desired.price + Decimal(5),
         reduce_only=desired.reduce_only,
         bucket=desired.bucket,
         action=desired.action,
@@ -531,7 +531,7 @@ def test_old_semantically_matching_order_is_replaced_after_debounce_window():
         position_side=desired.position_side,
         order_side=desired.order_side,
         quantity=desired.quantity,
-        price=desired.price + Decimal("5"),
+        price=desired.price + Decimal(5),
         reduce_only=desired.reduce_only,
         bucket=desired.bucket,
         action=desired.action,
@@ -551,8 +551,8 @@ def test_old_semantically_matching_order_is_replaced_after_debounce_window():
 
 def test_explicit_net_target_exposes_gap_and_suppresses_opposing_tactical_entries():
     cfg = PlannerConfig(
-        core_wallet_exposure_long=Decimal("0"),
-        core_wallet_exposure_short=Decimal("0"),
+        core_wallet_exposure_long=Decimal(0),
+        core_wallet_exposure_short=Decimal(0),
         tactical_wallet_exposure_long=Decimal("0.20"),
         tactical_wallet_exposure_short=Decimal("0.20"),
         target_net_wallet_exposure=Decimal("0.10"),
@@ -563,8 +563,8 @@ def test_explicit_net_target_exposes_gap_and_suppresses_opposing_tactical_entrie
     result = PureHedgePlanner().plan(ctx)
     assert result.target_net_quantity == Decimal("1.000")
     assert result.net_gap_quantity == Decimal("1.000")
-    assert result.long_target_quantity > Decimal("0")
-    assert result.short_target_quantity == Decimal("0")
+    assert result.long_target_quantity > Decimal(0)
+    assert result.short_target_quantity == Decimal(0)
     assert all(
         item.position_side is not PositionSide.SHORT or item.reduce_only
         for item in result.ideal_orders
@@ -583,20 +583,20 @@ def test_trailing_state_machine_arms_confirms_and_enters_cooldown():
 
     long_leg = LegPosition(
         PositionSide.LONG,
-        Decimal("1"),
-        Decimal("100"),
-        Decimal("0"),
-        Decimal("0"),
-        Decimal("1"),
-        Decimal("100"),
+        Decimal(1),
+        Decimal(100),
+        Decimal(0),
+        Decimal(0),
+        Decimal(1),
+        Decimal(100),
     )
     custom_wallet = WalletSnapshot(
-        balance=Decimal("1000"),
-        equity=Decimal("1000"),
-        available_balance=Decimal("900"),
+        balance=Decimal(1000),
+        equity=Decimal(1000),
+        available_balance=Decimal(900),
         long=long_leg,
         short=LegPosition(PositionSide.SHORT),
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
     cfg = PlannerConfig(
         trailing_trigger_distance=Decimal("0.01"),
@@ -620,8 +620,8 @@ def test_trailing_state_machine_arms_confirms_and_enters_cooldown():
         config=cfg,
         long_state=armed,
         short_state=armed_context.short_state,
-        long_signal=Decimal("1"),
-        short_signal=Decimal("0"),
+        long_signal=Decimal(1),
+        short_signal=Decimal(0),
     )
     confirmed = update_trailing_state(confirmed_context, PositionSide.LONG)
     assert confirmed.trailing_phase is TrailingPhase.CONFIRMED
@@ -641,7 +641,7 @@ def test_single_order_notional_and_pending_order_limits_are_enforced():
         core_wallet_exposure_long=Decimal("0.20"),
         tactical_wallet_exposure_long=Decimal("0.20"),
         max_wallet_exposure_long=Decimal("0.50"),
-        max_single_order_notional=Decimal("50"),
+        max_single_order_notional=Decimal(50),
         max_pending_entries=2,
         max_grid_layers=6,
         cooldown_seconds=0,
@@ -649,7 +649,7 @@ def test_single_order_notional_and_pending_order_limits_are_enforced():
     result = PureHedgePlanner().plan(context(config=cfg))
     entries = [item for item in result.ideal_orders if not item.reduce_only]
     assert len(entries) <= 2
-    assert all(item.notional <= Decimal("50") for item in entries)
+    assert all(item.notional <= Decimal(50) for item in entries)
 
 
 def test_tactical_lot_take_profit_is_bound_to_its_batch():
@@ -658,30 +658,30 @@ def test_tactical_lot_take_profit_is_bound_to_its_batch():
     from freqtrade.hedge.planning.context import TacticalLot
 
     lots = (
-        TacticalLot("lot-a", Decimal("1"), Decimal("90"), NOW - timedelta(hours=2), 1),
-        TacticalLot("lot-b", Decimal("1"), Decimal("110"), NOW - timedelta(hours=1), 2),
+        TacticalLot("lot-a", Decimal(1), Decimal(90), NOW - timedelta(hours=2), 1),
+        TacticalLot("lot-b", Decimal(1), Decimal(110), NOW - timedelta(hours=1), 2),
     )
     long_leg = LegPosition(
         PositionSide.LONG,
-        Decimal("2"),
-        Decimal("100"),
-        Decimal("0"),
-        Decimal("0"),
-        Decimal("2"),
-        Decimal("100"),
+        Decimal(2),
+        Decimal(100),
+        Decimal(0),
+        Decimal(0),
+        Decimal(2),
+        Decimal(100),
         tactical_lots=lots,
     )
     custom_wallet = WalletSnapshot(
-        balance=Decimal("1000"),
-        equity=Decimal("1000"),
-        available_balance=Decimal("900"),
+        balance=Decimal(1000),
+        equity=Decimal(1000),
+        available_balance=Decimal(900),
         long=long_leg,
         short=LegPosition(PositionSide.SHORT),
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
     cfg = PlannerConfig(
-        core_wallet_exposure_long=Decimal("0"),
-        tactical_wallet_exposure_long=Decimal("0"),
+        core_wallet_exposure_long=Decimal(0),
+        tactical_wallet_exposure_long=Decimal(0),
         tactical_reduce_fraction=Decimal("0.5"),
         take_profit_layers=2,
         cooldown_seconds=0,
@@ -702,8 +702,8 @@ def test_unstuck_budget_exhaustion_blocks_further_loss_realization():
         PositionSide.LONG,
         unstuck_budget_day=NOW.date().isoformat(),
         unstuck_budget_week=f"{NOW.isocalendar().year}-W{NOW.isocalendar().week:02d}",
-        unstuck_daily_loss=Decimal("10"),
-        unstuck_weekly_loss=Decimal("10"),
+        unstuck_daily_loss=Decimal(10),
+        unstuck_weekly_loss=Decimal(10),
     )
     cfg = PlannerConfig(
         unstuck_trigger_gross_exposure=Decimal("0.01"),
@@ -715,7 +715,7 @@ def test_unstuck_budget_exhaustion_blocks_further_loss_realization():
         context(
             config=cfg,
             long_state=state,
-            wallet=wallet(Decimal("2"), Decimal("0")),
+            wallet=wallet(Decimal(2), Decimal(0)),
         )
     )
     assert not [item for item in result.ideal_orders if item.action is IntentAction.UNSTUCK]
@@ -730,7 +730,7 @@ def test_order_diff_reports_modify_delete_and_risk_cancel_classes():
         position_side=desired.position_side,
         order_side=desired.order_side,
         quantity=desired.quantity,
-        price=desired.price + Decimal("10"),
+        price=desired.price + Decimal(10),
         reduce_only=False,
         bucket=desired.bucket,
         action=desired.action,
@@ -744,7 +744,7 @@ def test_order_diff_reports_modify_delete_and_risk_cancel_classes():
         position_side=desired.position_side,
         order_side=desired.order_side,
         quantity=Decimal("0.001"),
-        price=Decimal("10"),
+        price=Decimal(10),
         reduce_only=False,
         bucket=PositionBucket.CORE,
         action=IntentAction.INCREASE,

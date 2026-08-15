@@ -91,13 +91,11 @@ class ExecutionOrderOwnershipRegistry:
         symbol: str | None = None,
     ) -> tuple[ExecutionOrder, ...]:
         selected: list[ExecutionOrder] = []
-        for order in self._store.list_orders():
-            if order.lifecycle.terminal:
-                continue
-            if account_id is not None and order.intent.account_id != account_id:
-                continue
-            if symbol is not None and order.intent.symbol != symbol:
-                continue
+        for order in self._store.list_orders(
+            account_id=account_id,
+            symbol=symbol,
+            include_terminal=False,
+        ):
             selected.append(order)
         return tuple(sorted(selected, key=lambda item: (item.created_at, item.client_order_id)))
 

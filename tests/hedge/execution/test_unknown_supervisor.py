@@ -33,19 +33,19 @@ def unknown_result(client_order_id: str) -> ExecutionResult:
         symbol="ETHUSDT",
         position_side=PositionSide.LONG,
         action=IntentAction.OPEN,
-        quantity=Decimal("1"),
+        quantity=Decimal(1),
         idempotency_key="unknown-supervisor",
         order_type=OrderType.MARKET,
     )
     now = datetime(2026, 7, 27, tzinfo=UTC)
     lifecycle = OrderLifecycle(updated_at=now).transition(
-        OrderState.SUBMITTING, ordered_quantity=Decimal("1"), occurred_at=now
+        OrderState.SUBMITTING, ordered_quantity=Decimal(1), occurred_at=now
     )
     lifecycle = lifecycle.transition(
-        OrderState.UNKNOWN, ordered_quantity=Decimal("1"), occurred_at=now
+        OrderState.UNKNOWN, ordered_quantity=Decimal(1), occurred_at=now
     )
     return ExecutionResult(
-        ExecutionOrder(intent, client_order_id, Decimal("1"), lifecycle, now),
+        ExecutionOrder(intent, client_order_id, Decimal(1), lifecycle, now),
         message="UNKNOWN remains unresolved",
     )
 

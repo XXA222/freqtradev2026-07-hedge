@@ -16,8 +16,8 @@ def test_close_both_allows_flat_leg_and_persists_expected_members() -> None:
     report = executor.execute_close_both(
         account_id="acct",
         symbol="ETHUSDT",
-        long_quantity=Decimal("1"),
-        short_quantity=Decimal("0"),
+        long_quantity=Decimal(1),
+        short_quantity=Decimal(0),
         idempotency_key="close",
         order_type=OrderType.MARKET,
     )
@@ -37,15 +37,15 @@ def test_close_both_supports_distinct_limit_prices() -> None:
     report = executor.execute_close_both(
         account_id="acct",
         symbol="ETHUSDT",
-        long_quantity=Decimal("1"),
-        short_quantity=Decimal("2"),
+        long_quantity=Decimal(1),
+        short_quantity=Decimal(2),
         idempotency_key="close-limit",
         order_type=OrderType.LIMIT,
-        long_limit_price=Decimal("101"),
-        short_limit_price=Decimal("99"),
+        long_limit_price=Decimal(101),
+        short_limit_price=Decimal(99),
     )
     prices = {
         result.order.intent.position_side.value: result.order.intent.limit_price
         for result in report.results
     }
-    assert prices == {"LONG": Decimal("101"), "SHORT": Decimal("99")}
+    assert prices == {"LONG": Decimal(101), "SHORT": Decimal(99)}

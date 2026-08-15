@@ -238,7 +238,7 @@ class FreqtradeBot(LoggingMixin):
             self._schedule.every().day.at("00:02").do(self.exchange.ws_connection_reset)
             self._schedule.every().day.at("00:07").do(self.wallets.record_wallet_state)
 
-            self.strategy.ft_bot_start()
+            self.strategy.ft_bot_start(hedge_runtime=self.hedge_runtime)
             # Initialize protections AFTER bot start - otherwise parameters are not loaded.
             self.protections = ProtectionManager(self.config, self.strategy.protections)
 

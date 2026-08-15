@@ -53,7 +53,7 @@ def deep_differences(
     candidate: Any,
     *,
     path: str = "$",
-    tolerance: Decimal = Decimal("0"),
+    tolerance: Decimal = Decimal(0),
 ) -> tuple[HedgeAnalysisDifference, ...]:
     """Return deterministic structural and numeric differences."""
 
@@ -163,7 +163,7 @@ class HedgeLookaheadAnalyzer:
         baseline: Mapping[str, Any],
         truncated_runs: Mapping[int, Mapping[str, Any]],
         *,
-        tolerance: Decimal = Decimal("0"),
+        tolerance: Decimal = Decimal(0),
     ) -> HedgeLookaheadReport:
         probes: list[HedgeLookaheadProbe] = []
         for cutoff, candidate in sorted(truncated_runs.items()):
@@ -232,7 +232,7 @@ class HedgeRecursiveAnalyzer:
         outputs: Mapping[int, Mapping[str, Any]],
         *,
         compare_tail: int = 1,
-        tolerance: Decimal = Decimal("0"),
+        tolerance: Decimal = Decimal(0),
     ) -> HedgeRecursiveReport:
         if not outputs:
             raise ValueError("recursive analysis requires at least one run")

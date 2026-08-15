@@ -9,6 +9,7 @@ research executor.
 
 from __future__ import annotations
 
+import logging
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -23,6 +24,9 @@ from .training import normalize_training_device
 if TYPE_CHECKING:
     from .service import HedgeResearchService
 
+
+
+logger = logging.getLogger(__name__)
 
 class PipelineState(StrEnum):
     QUEUED = "QUEUED"
@@ -1010,7 +1014,11 @@ class ResearchPipelineManager:
                 )
                 result["walk_forward_robustness_score"] = robust
             except (KeyError, TypeError, ValueError):
-                pass
+                logger.debug(
+                    "Walk-forward robustness metric is unavailable for %s",
+                    metric,
+                    exc_info=True,
+                )
         return result
 
     def _final_experiment(self, record: PipelineRecord, group: dict[str, Any]) -> dict[str, Any]:

@@ -14,17 +14,17 @@ def test_extended_operational_metric_families_are_stable():
     metrics.projection(9, projection="position")
     metrics.reconciliation_diff("HIGH", resolved=False)
     metrics.rest_error("429", endpoint="open_orders")
-    metrics.clock_skew(Decimal("-15"))
+    metrics.clock_skew(Decimal(-15))
     metrics.account_risk(
-        gross_long=Decimal("100"),
-        gross_short=Decimal("50"),
-        net=Decimal("50"),
+        gross_long=Decimal(100),
+        gross_short=Decimal(50),
+        net=Decimal(50),
         gross_ratio=Decimal("0.15"),
         margin_utilization=Decimal("0.05"),
-        pending_risk=Decimal("10"),
+        pending_risk=Decimal(10),
         account_id="hedge-main",
     )
-    metrics.single_writer(leader=True, lease_age_seconds=Decimal("2"))
+    metrics.single_writer(leader=True, lease_age_seconds=Decimal(2))
     metrics.lock_wait(Decimal("0.01"), scope="position")
     metrics.lock_timeout(scope="position")
     metrics.deadlock(scope="account-position")

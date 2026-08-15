@@ -74,7 +74,7 @@ class EmergencyReduceOnlyController:
         action: PositionAction | str,
         requested_quantity: Decimal,
         confirmed_quantity: Decimal,
-        pending_reduce_quantity: Decimal = Decimal("0"),
+        pending_reduce_quantity: Decimal = Decimal(0),
         timeout_seconds: float | None = None,
     ) -> EmergencyReduceApproval:
         normalized_action = (
@@ -83,10 +83,10 @@ class EmergencyReduceOnlyController:
             else PositionAction(str(action).upper())
         )
         if normalized_action not in {PositionAction.REDUCE, PositionAction.CLOSE}:
-            return EmergencyReduceApproval(False, Decimal("0"), ("EMERGENCY_INCREASE_FORBIDDEN",))
+            return EmergencyReduceApproval(False, Decimal(0), ("EMERGENCY_INCREASE_FORBIDDEN",))
         state = self._state_machine.state
         if not state.allows(normalized_action, emergency=True):
-            return EmergencyReduceApproval(False, Decimal("0"), ("RISK_STATE_FORBIDS_ACTION",))
+            return EmergencyReduceApproval(False, Decimal(0), ("RISK_STATE_FORBIDS_ACTION",))
 
         validated_lease: LeaseRecord | None = None
 
@@ -110,41 +110,41 @@ class EmergencyReduceOnlyController:
         except LeaseLost:
             return EmergencyReduceApproval(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("SINGLE_WRITER_LEASE_INVALID",),
             )
         except PositionLockTimeout:
-            return EmergencyReduceApproval(False, Decimal("0"), ("POSITION_LOCK_TIMEOUT",))
+            return EmergencyReduceApproval(False, Decimal(0), ("POSITION_LOCK_TIMEOUT",))
         except DeadlockDetected:
             return EmergencyReduceApproval(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("POSITION_LOCK_DEADLOCK_DETECTED",),
             )
         except LockOrderViolation:
             return EmergencyReduceApproval(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("POSITION_LOCK_ORDER_VIOLATION",),
             )
         except _EmergencyPreconditionFailed:
             return EmergencyReduceApproval(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("RISK_STATE_FORBIDS_ACTION",),
             )
         if reservation.allowed_quantity <= 0:
             reservation.release()
             return EmergencyReduceApproval(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 (reservation.reason_code,),
             )
         if validated_lease is None:
             reservation.release()
             return EmergencyReduceApproval(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("SINGLE_WRITER_LEASE_INVALID",),
             )
         return EmergencyReduceApproval(

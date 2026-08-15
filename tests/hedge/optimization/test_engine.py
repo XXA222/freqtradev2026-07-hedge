@@ -17,6 +17,10 @@ def config(directory: str) -> dict:
                 "study_name": "engine-test",
                 "sampler": "grid",
                 "trials": 3,
+                # This module tests engine scoring/persistence semantics, not
+                # process-pool behavior. Keep evaluator side effects in-process
+                # on every OS; test_parallel.py owns the parallel contract.
+                "workers": 1,
                 "storage_path": str(Path(directory) / "study.sqlite"),
                 "output_directory": str(Path(directory) / "out"),
                 "parameters": [

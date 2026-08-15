@@ -252,7 +252,7 @@ class SqlPaperAccountEventSink:
                     .order_by(AccountEventRow.event_time, AccountEventRow.id)
                 )
             )
-        funding_delta = Decimal("0")
+        funding_delta = Decimal(0)
         last_funding_time: datetime | None = None
         event_ids: set[str] = set()
         for row in rows:

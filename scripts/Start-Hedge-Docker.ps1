@@ -3,8 +3,11 @@ param(
     [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$ConfigPath = "user_data\config_hedge.json",
     [string]$Strategy = "",
-    [string]$Image = "freqtrade-hedge:1.3.1-runtime",
-    [string]$ContainerName = "freqtrade-hedge-runtime"
+    [string]$Image = "freqtrade-hedge:1.7-risklevel-rl-cpu",
+    [string]$ContainerName = "freqtrade-hedge-risklevel-rl",
+    [switch]$RebuildImage,
+    [switch]$SkipImageValidation,
+    [switch]$SkipHostResourceBroker
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,8 +49,22 @@ if ($Data.hedge.operation_mode -notin @("paper", "readonly", "read_only")) {
 }
 
 & docker image inspect $Image *> $null
-if ($LASTEXITCODE -ne 0) {
-    throw "Validated runtime image does not exist: $Image"
+$ImageExists = ($LASTEXITCODE -eq 0)
+if ($RebuildImage -or -not $ImageExists) {
+    Write-Host "Building Hedge Risk-Level RL image with CPU training policy..." -ForegroundColor Cyan
+    & docker build `
+        --build-arg "INSTALL_HEDGE_RISKLEVEL_RL=true" `
+        --tag $Image `
+        $Root
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to build Docker runtime image: $Image"
+    }
+}
+if (-not $SkipImageValidation) {
+    & docker run --rm --entrypoint /opt/hedge-venv/bin/python $Image -c "import pathlib,torch,gymnasium,stable_baselines3,sb3_contrib,freqtrade; root=pathlib.Path('/opt/freqtrade-hedge').resolve(); module=pathlib.Path(freqtrade.__file__).resolve(); assert root in module.parents,(root,module); print('DOCKER_RISKLEVEL_RUNTIME_GATE: PASS')"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker Risk-Level RL image validation failed: $Image"
+    }
 }
 
 $Existing = & docker ps -a --filter "name=^/$ContainerName$" --format "{{.ID}}"
@@ -59,7 +76,20 @@ if ($Existing) {
 }
 
 $RelativeConfig = $Config.Substring($UserDataPrefix.Length).Replace('\', '/')
-$ContainerConfig = "/freqtrade/user_data/$RelativeConfig"
+$ContainerConfig = "/opt/freqtrade-hedge/user_data/$RelativeConfig"
+if (-not $SkipHostResourceBroker) {
+    $Broker = Join-Path $Root "scripts\Start-Freqtrade-Hedge-Adaptive-Resource-Broker.ps1"
+    if (Test-Path -LiteralPath $Broker -PathType Leaf) {
+        $PowerShellExe = Join-Path $PSHOME "powershell.exe"
+        if (-not (Test-Path -LiteralPath $PowerShellExe -PathType Leaf)) {
+            $PowerShellExe = "powershell.exe"
+        }
+        & $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $Broker -UserDataRoot $UserData
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to start the Windows host resource broker."
+        }
+    }
+}
 $Args = @(
     "run", "--detach", "--init",
     "--name", $ContainerName,
@@ -67,9 +97,9 @@ $Args = @(
     "--env", "FT_APP_ENV=docker",
     "--env", "PYTHONUNBUFFERED=1",
     "--publish", "127.0.0.1:8080:8080",
-    "--volume", "${UserData}:/freqtrade/user_data",
+    "--volume", "${UserData}:/opt/freqtrade-hedge/user_data",
     $Image,
-    "trade", "--config", $ContainerConfig
+    "freqtrade", "trade", "--config", $ContainerConfig
 )
 if ($Strategy) {
     $Args += @("--strategy", $Strategy)

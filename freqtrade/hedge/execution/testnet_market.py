@@ -115,7 +115,7 @@ class BinanceTestnetMarketProbe:
         *,
         symbol: str,
         position_side: PositionSide,
-        target_notional: Decimal = Decimal("10"),
+        target_notional: Decimal = Decimal(10),
         max_notional: Decimal = DEFAULT_TESTNET_MAX_NOTIONAL,
         passive_offset_bps: int = 1000,
     ) -> TestnetCanaryOrder:
@@ -133,14 +133,14 @@ class BinanceTestnetMarketProbe:
             raise TypeError("passive_offset_bps must be an integer")
         if not 100 <= passive_offset_bps <= 3000:
             raise ValueError("passive_offset_bps must be in [100, 3000]")
-        offset = Decimal(passive_offset_bps) / Decimal("10000")
+        offset = Decimal(passive_offset_bps) / Decimal(10000)
         if side is PositionSide.LONG:
-            raw_price = rules.mark_price * (Decimal("1") - offset)
+            raw_price = rules.mark_price * (Decimal(1) - offset)
             lower_guard = rules.mark_price * rules.multiplier_down * Decimal("1.001")
             raw_price = max(raw_price, lower_guard)
             price = _quantize_down(raw_price, rules.price_tick)
         else:
-            raw_price = rules.mark_price * (Decimal("1") + offset)
+            raw_price = rules.mark_price * (Decimal(1) + offset)
             upper_guard = rules.mark_price * rules.multiplier_up * Decimal("0.999")
             raw_price = min(raw_price, upper_guard)
             price = _quantize_up(raw_price, rules.price_tick)

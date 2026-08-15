@@ -30,7 +30,7 @@ def intent(key: str) -> OrderIntent:
         quantity=Decimal("0.01"),
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("2000"),
+        limit_price=Decimal(2000),
     )
 
 

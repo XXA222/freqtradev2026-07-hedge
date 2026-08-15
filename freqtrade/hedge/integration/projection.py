@@ -72,9 +72,9 @@ def _risk_from_view(
     if equity <= 0:
         return None
 
-    maintenance_total = max(account.total_maintenance_margin, Decimal("0"))
+    maintenance_total = max(account.total_maintenance_margin, Decimal(0))
     position_facts = tuple(item for item in view.positions if item.quantity != 0)
-    total_notional = sum((abs(item.quantity) * item.mark_price for item in position_facts), Decimal("0"))
+    total_notional = sum((abs(item.quantity) * item.mark_price for item in position_facts), Decimal(0))
     positions: list[PositionRiskLeg] = []
     for item in position_facts:
         quantity = abs(item.quantity)
@@ -84,7 +84,7 @@ def _risk_from_view(
         maintenance = (
             maintenance_total * (quantity * mark / total_notional)
             if total_notional > 0
-            else Decimal("0")
+            else Decimal(0)
         )
         positions.append(
             PositionRiskLeg(
@@ -101,7 +101,7 @@ def _risk_from_view(
     normalized_positions = tuple(positions)
     pending: list[PendingOrderRisk] = []
     for item in view.active_orders:
-        remaining = max(item.original_quantity - item.cumulative_filled_quantity, Decimal("0"))
+        remaining = max(item.original_quantity - item.cumulative_filled_quantity, Decimal(0))
         if remaining <= 0:
             continue
         reference = _reference_price(item, normalized_positions)
@@ -114,7 +114,7 @@ def _risk_from_view(
                 if leg.symbol == canonicalize_symbol(item.symbol)
                 and leg.position_side is _position_side(item.position_side)
             ),
-            Decimal("1"),
+            Decimal(1),
         )
         pending.append(
             PendingOrderRisk(
@@ -132,11 +132,11 @@ def _risk_from_view(
     portfolio = build_risk_portfolio(
         account_id=view.account_id,
         equity=equity,
-        wallet_balance=max(account.total_wallet_balance, Decimal("0")),
-        available_balance=max(account.total_available_balance, Decimal("0")),
+        wallet_balance=max(account.total_wallet_balance, Decimal(0)),
+        available_balance=max(account.total_available_balance, Decimal(0)),
         positions=normalized_positions,
         pending_orders=tuple(pending),
-        initial_margin=max(account.total_initial_margin, Decimal("0")),
+        initial_margin=max(account.total_initial_margin, Decimal(0)),
         maintenance_margin=maintenance_total,
         risk_data_valid=health.rest_fresh and health.configuration_valid,
         observed_at_ms=observed_ms,

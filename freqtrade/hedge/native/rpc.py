@@ -37,8 +37,8 @@ class HedgePositionProjection:
     realized_pnl: Decimal
     core_quantity: Decimal
     tactical_quantity: Decimal
-    funding: Decimal = Decimal("0")
-    fees: Decimal = Decimal("0")
+    funding: Decimal = Decimal(0)
+    fees: Decimal = Decimal(0)
     liquidation_price: Decimal | None = None
     updated_at: datetime = field(default_factory=utc_datetime)
 
@@ -51,21 +51,21 @@ class HedgePositionProjection:
         side = rows[0].side
         if any(item.pair != pair or item.side is not side for item in rows):
             raise ValueError("position projection legs must share pair and side")
-        quantity = sum((item.quantity for item in rows), Decimal("0"))
-        notional_cost = sum((item.quantity * item.average_price for item in rows), Decimal("0"))
+        quantity = sum((item.quantity for item in rows), Decimal(0))
+        notional_cost = sum((item.quantity * item.average_price for item in rows), Decimal(0))
         mark = rows[-1].mark_price
         return cls(
             pair=pair,
             side=side,
             quantity=quantity,
-            average_price=Decimal("0") if quantity == 0 else notional_cost / quantity,
+            average_price=Decimal(0) if quantity == 0 else notional_cost / quantity,
             mark_price=mark,
-            unrealized_pnl=sum((item.unrealized_pnl for item in rows), Decimal("0")),
-            realized_pnl=sum((item.realized_pnl for item in rows), Decimal("0")),
-            core_quantity=sum((item.quantity for item in rows if item.bucket is HedgeBucket.CORE), Decimal("0")),
-            tactical_quantity=sum((item.quantity for item in rows if item.bucket is HedgeBucket.TACTICAL), Decimal("0")),
-            funding=sum((item.funding for item in rows), Decimal("0")),
-            fees=sum((item.fees for item in rows), Decimal("0")),
+            unrealized_pnl=sum((item.unrealized_pnl for item in rows), Decimal(0)),
+            realized_pnl=sum((item.realized_pnl for item in rows), Decimal(0)),
+            core_quantity=sum((item.quantity for item in rows if item.bucket is HedgeBucket.CORE), Decimal(0)),
+            tactical_quantity=sum((item.quantity for item in rows if item.bucket is HedgeBucket.TACTICAL), Decimal(0)),
+            funding=sum((item.funding for item in rows), Decimal(0)),
+            fees=sum((item.fees for item in rows), Decimal(0)),
             **kwargs,
         )
 
@@ -94,7 +94,7 @@ class HedgeAccountProjection:
                     "currency": "USDT",
                     "free": float(self.available_balance),
                     "balance": float(self.wallet_balance),
-                    "used": float(max(self.wallet_balance - self.available_balance, Decimal("0"))),
+                    "used": float(max(self.wallet_balance - self.available_balance, Decimal(0))),
                     "est_stake": float(self.equity),
                     "stake": "USDT",
                 }
@@ -133,10 +133,10 @@ class HedgeAccountProjection:
         return rows
 
     def profit_projection(self) -> dict[str, Any]:
-        realized = sum((item.realized_pnl for item in self.positions), Decimal("0"))
-        unrealized = sum((item.unrealized_pnl for item in self.positions), Decimal("0"))
-        fees = sum((item.fees for item in self.positions), Decimal("0"))
-        funding = sum((item.funding for item in self.positions), Decimal("0"))
+        realized = sum((item.realized_pnl for item in self.positions), Decimal(0))
+        unrealized = sum((item.unrealized_pnl for item in self.positions), Decimal(0))
+        fees = sum((item.fees for item in self.positions), Decimal(0))
+        funding = sum((item.funding for item in self.positions), Decimal(0))
         return {
             "profit_closed_coin": float(realized),
             "profit_all_coin": float(realized + unrealized),

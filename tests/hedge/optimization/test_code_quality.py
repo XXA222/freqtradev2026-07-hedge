@@ -252,7 +252,13 @@ class OptimizationCodeQualityTest(unittest.TestCase):
         }
 
     @staticmethod
-    def _fake_run(*, fingerprint: str, bar_count: int, report: dict[str, object] | None = None):
+    def _fake_run(
+        *,
+        fingerprint: str,
+        bar_count: int,
+        report: dict[str, object] | None = None,
+        missing_candle_count: int = 0,
+    ):
         start = datetime(2026, 1, 1, tzinfo=UTC)
         events = tuple(
             BarEvent(
@@ -270,6 +276,7 @@ class OptimizationCodeQualityTest(unittest.TestCase):
             end=events[-1].timestamp,
             bar_count=bar_count,
             data_fingerprint=fingerprint,
+            missing_candle_count=missing_candle_count,
         )
         result = SimpleNamespace(
             report=report or {
@@ -378,7 +385,79 @@ class OptimizationCodeQualityTest(unittest.TestCase):
             self.assertIs(result.result.trials[0].status, TrialStatus.FAILED)
             self.assertFalse((output / ".trial-artifacts").exists())
 
-    def test_round_20_quality_fixes_keep_valid_backtesting_config_parseable(self) -> None:
+    def test_round_20_probe_missing_candles_fail_closed(self) -> None:
+        with TemporaryDirectory() as directory:
+
+            def runner(_config, *, export_path, export_events):
+                return self._fake_run(
+                    fingerprint="probe",
+                    bar_count=6,
+                    missing_candle_count=1,
+                )
+
+            with self.assertRaisesRegex(ValueError, "gap-free compact dataset"):
+                run_freqtrade_hedge_optimization(
+                    self._adapter_config(directory),
+                    backtest_runner=runner,
+                )
+
+    def test_round_21_missing_probe_dataset_contract_is_explicit(self) -> None:
+        with TemporaryDirectory() as directory:
+
+            def runner(_config, *, export_path, export_events):
+                run = self._fake_run(fingerprint="probe", bar_count=6)
+                del run.dataset.missing_candle_count
+                return run
+
+            with self.assertRaisesRegex(
+                TypeError,
+                r"probe backtest dataset is missing required field\(s\): missing_candle_count",
+            ):
+                run_freqtrade_hedge_optimization(
+                    self._adapter_config(directory),
+                    backtest_runner=runner,
+                )
+
+    def test_round_22_trial_missing_dataset_contract_becomes_failed_trial(self) -> None:
+        with TemporaryDirectory() as directory:
+            calls = 0
+
+            def runner(_config, *, export_path, export_events):
+                nonlocal calls
+                calls += 1
+                run = self._fake_run(fingerprint="probe", bar_count=6)
+                if calls > 1:
+                    del run.dataset.missing_candle_count
+                return run
+
+            result = run_freqtrade_hedge_optimization(
+                self._adapter_config(directory),
+                backtest_runner=runner,
+            )
+            self.assertIs(result.result.trials[0].status, TrialStatus.FAILED)
+            self.assertIn("missing required field(s): missing_candle_count", result.result.trials[0].error or "")
+
+    def test_round_23_trial_missing_candles_fail_closed(self) -> None:
+        with TemporaryDirectory() as directory:
+            calls = 0
+
+            def runner(_config, *, export_path, export_events):
+                nonlocal calls
+                calls += 1
+                return self._fake_run(
+                    fingerprint="probe",
+                    bar_count=6,
+                    missing_candle_count=0 if calls == 1 else 1,
+                )
+
+            result = run_freqtrade_hedge_optimization(
+                self._adapter_config(directory),
+                backtest_runner=runner,
+            )
+            self.assertIs(result.result.trials[0].status, TrialStatus.FAILED)
+            self.assertIn("missing candles", result.result.trials[0].error or "")
+
+    def test_round_24_quality_fixes_keep_valid_backtesting_config_parseable(self) -> None:
         with TemporaryDirectory() as directory:
             path = self._write_backtesting_config(
                 directory,
@@ -430,7 +509,6 @@ class OptimizationCodeQualityTest(unittest.TestCase):
     def test_regression_planner_integer_override_rejects_fractional_value(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be int"):
             planner_config_with_overrides(PlannerConfig(), {"max_grid_layers": 1.5})
-
 
     def test_regression_optimization_config_rejects_unknown_keys(self) -> None:
         raw = self._engine_config(".")

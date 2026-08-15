@@ -138,7 +138,7 @@ class TestnetE2EConfig:
     mode: TestnetScenarioMode = TestnetScenarioMode.VALIDATION_ONLY
     symbol: str = "ETHUSDT"
     position_side: PositionSide = PositionSide.LONG
-    target_notional: Decimal = Decimal("10")
+    target_notional: Decimal = Decimal(10)
     max_order_notional: Decimal = DEFAULT_TESTNET_MAX_NOTIONAL
     passive_offset_bps: int = 1000
     ready_timeout_seconds: float = 120.0
@@ -1037,7 +1037,7 @@ def _seed_store(
         state = OrderState.UNKNOWN
     lifecycle = OrderLifecycle(
         status=state,
-        filled_quantity=(intent.quantity if state is OrderState.FILLED else Decimal("0")),
+        filled_quantity=(intent.quantity if state is OrderState.FILLED else Decimal(0)),
         average_price=(intent.limit_price if state is OrderState.FILLED else None),
         version=1,
         updated_at=datetime.now(UTC),

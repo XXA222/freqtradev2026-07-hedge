@@ -181,7 +181,7 @@ class NativeConvergenceCoordinator:
         max_stake = (
             proposed_stake
             if capital is None
-            else max(capital.remaining_notional / leverage, Decimal("0"))
+            else max(capital.remaining_notional / leverage, Decimal(0))
         )
         adjusted_stake = self.callbacks.custom_stake_amount(
             callback_intent,
@@ -193,7 +193,7 @@ class NativeConvergenceCoordinator:
         # Native convergence is conservative: callbacks may reduce planner risk but
         # cannot silently enlarge a planner intent. Hyperopt/planner own enlargement.
         quantity = min(quantity, native.quantity)
-        if quantity <= Decimal("0"):
+        if quantity <= Decimal(0):
             return replace(transformed, quantity=Decimal("0.000000000000000001"))
         if quantity == native.quantity:
             return transformed

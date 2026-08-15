@@ -28,7 +28,7 @@ from freqtrade.hedge.strategies.contract import (
     target_net_quantity_for_directive,
 )
 
-ZERO = Decimal("0")
+ZERO = Decimal(0)
 
 
 class SignalLike(Protocol):
@@ -77,7 +77,7 @@ class ReadonlyPlanningContextBuilder:
         *,
         planner_config: PlannerConfig,
         allowed_symbols: tuple[str, ...] = ("BTCUSDT", "ETHUSDT"),
-        default_leverage: Decimal = Decimal("1"),
+        default_leverage: Decimal = Decimal(1),
     ) -> None:
         self.planner_config = planner_config
         self.allowed_symbols = tuple(dict.fromkeys(raw_symbol(item) for item in allowed_symbols))
@@ -141,10 +141,10 @@ class ReadonlyPlanningContextBuilder:
             short_score=signal.short_score,
             target_net_quantity=None if target_net_ratio is not None else target_net,
             target_net_ratio=target_net_ratio,
-            confidence=getattr(signal, "confidence", Decimal("1")),
-            risk_scale=getattr(signal, "risk_scale", Decimal("1")),
-            long_exposure_scale=getattr(signal, "long_exposure_scale", Decimal("1")),
-            short_exposure_scale=getattr(signal, "short_exposure_scale", Decimal("1")),
+            confidence=getattr(signal, "confidence", Decimal(1)),
+            risk_scale=getattr(signal, "risk_scale", Decimal(1)),
+            long_exposure_scale=getattr(signal, "long_exposure_scale", Decimal(1)),
+            short_exposure_scale=getattr(signal, "short_exposure_scale", Decimal(1)),
             allow_new_risk=bool(getattr(signal, "allow_new_risk", True)),
             regime=str(getattr(signal, "regime", "UNKNOWN")),
             reason=str(

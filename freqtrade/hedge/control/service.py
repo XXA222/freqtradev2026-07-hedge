@@ -409,7 +409,7 @@ class HedgeControlService:
             and Decimal(item.quantity) > 0
         }
         plan: list[ControlPlanItem] = []
-        quantities: dict[str, Decimal] = {"LONG": Decimal("0"), "SHORT": Decimal("0")}
+        quantities: dict[str, Decimal] = {"LONG": Decimal(0), "SHORT": Decimal(0)}
         marks: dict[str, Decimal] = {}
         for side in sides:
             item = positions.get(side)

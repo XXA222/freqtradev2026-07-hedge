@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
 
@@ -13,8 +12,21 @@ from .context import (
 
 
 def _idle(state: StrategyLegState) -> StrategyLegState:
-    return replace(
-        state,
+    # The planner visits both legs on every bar.  Returning the existing immutable
+    # state when it is already fully idle avoids a dataclasses.replace() call,
+    # StrategyLegState validation, and a short-lived object on the overwhelmingly
+    # common flat/no-trailing path.
+    if (
+        state.trailing_phase is TrailingPhase.IDLE
+        and state.trailing_trigger_price is None
+        and state.trailing_extreme is None
+        and state.trailing_started_at is None
+        and state.trailing_confirmed_at is None
+        and state.trailing_cooldown_until is None
+        and not state.trailing_armed
+    ):
+        return state
+    return state._evolve_trusted(
         trailing_phase=TrailingPhase.IDLE,
         trailing_trigger_price=None,
         trailing_extreme=None,
@@ -31,8 +43,7 @@ def enter_trailing_cooldown(
     timestamp,
     cooldown_seconds: int,
 ) -> StrategyLegState:
-    return replace(
-        state,
+    return state._evolve_trusted(
         trailing_phase=TrailingPhase.COOLDOWN,
         trailing_trigger_price=None,
         trailing_extreme=None,
@@ -70,33 +81,31 @@ def update_trailing_state(context: PlanningContext, side: PositionSide) -> Strat
         extreme = state.trailing_extreme or price
         if side is PositionSide.LONG:
             extreme = min(extreme, price)
-            confirmed = price >= extreme * (Decimal("1") + cfg.trailing_rebound)
+            confirmed = price >= extreme * (Decimal(1) + cfg.trailing_rebound)
         else:
             extreme = max(extreme, price)
-            confirmed = price <= extreme * (Decimal("1") - cfg.trailing_rebound)
+            confirmed = price <= extreme * (Decimal(1) - cfg.trailing_rebound)
         if confirmed:
-            return replace(
-                state,
+            return state._evolve_trusted(
                 trailing_phase=TrailingPhase.CONFIRMED,
                 trailing_extreme=extreme,
                 trailing_confirmed_at=now,
                 trailing_armed=True,
             )
-        return replace(state, trailing_extreme=extreme, trailing_armed=False)
+        return state._evolve_trusted(trailing_extreme=extreme, trailing_armed=False)
 
     if leg.quantity <= 0:
         return _idle(state)
 
     anchor = leg.average_price
     trigger = anchor * (
-        Decimal("1") - cfg.trailing_trigger_distance
+        Decimal(1) - cfg.trailing_trigger_distance
         if side is PositionSide.LONG
-        else Decimal("1") + cfg.trailing_trigger_distance
+        else Decimal(1) + cfg.trailing_trigger_distance
     )
     crossed = price <= trigger if side is PositionSide.LONG else price >= trigger
     if crossed:
-        return replace(
-            state,
+        return state._evolve_trusted(
             trailing_phase=TrailingPhase.ARMED,
             trailing_trigger_price=trigger,
             trailing_extreme=price,
@@ -105,8 +114,7 @@ def update_trailing_state(context: PlanningContext, side: PositionSide) -> Strat
             trailing_cooldown_until=None,
             trailing_armed=False,
         )
-    return replace(
-        state,
+    return state._evolve_trusted(
         trailing_phase=TrailingPhase.IDLE,
         trailing_trigger_price=trigger,
         trailing_extreme=None,

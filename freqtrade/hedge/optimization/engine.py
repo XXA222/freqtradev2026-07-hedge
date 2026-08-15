@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import os
 import threading
 from collections.abc import Mapping, Sequence
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    Future,
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    wait,
+)
 from dataclasses import dataclass
 from decimal import Decimal
 from time import monotonic
 from typing import Any, Protocol
 
+from freqtrade.hedge.backtesting.memory import release_phase_memory
 from freqtrade.hedge.optimization.aggregation import aggregate_metric_sets
 from freqtrade.hedge.optimization.quality import (
     validate_report_finite,
@@ -31,6 +39,28 @@ from freqtrade.hedge.optimization.splits import WalkForwardWindow, build_walk_fo
 from freqtrade.hedge.optimization.store import StudyStore
 from freqtrade.hedge.optimization.stress import StressScenario, apply_stress_to_config
 from freqtrade.hedge.optimization.types import OptimizationResult, TrialRecord, TrialStatus
+from freqtrade.hedge.performance.resource_governor import (
+    AdaptiveResourceGovernor,
+    configure_worker_numeric_threads,
+    multiprocessing_context,
+)
+
+
+_PROCESS_ENGINE: "OptimizationEngine | None" = None
+
+
+def _process_initializer() -> None:
+    configure_worker_numeric_threads()
+
+
+def _process_evaluate(
+    trial_id: int,
+    parameters: Mapping[str, object],
+) -> TrialRecord:
+    engine = _PROCESS_ENGINE
+    if engine is None:  # pragma: no cover - defensive fork guard
+        raise RuntimeError("optimization process engine was not initialized")
+    return engine._evaluate_one(trial_id, parameters)
 
 
 class TrialEvaluator(Protocol):
@@ -70,6 +100,9 @@ class OptimizationEngine:
         self.dataset_fingerprint = dataset_fingerprint
         self.space = ParameterSpace(self.config.parameters)
         self.store = store or StudyStore(self.config.storage_path)
+        self.parallel_backend = "uninitialized"
+        self.peak_workers = 0
+        self.resource_samples: list[dict[str, object]] = []
         if self.config.walk_forward is None:
             self.windows: tuple[WalkForwardWindow | None, ...] = (None,)
         else:
@@ -109,7 +142,7 @@ class OptimizationEngine:
     def _evaluate_one(self, trial_id: int, parameters: Mapping[str, object]) -> TrialRecord:
         started = monotonic()
         parameter_hash = parameter_fingerprint(parameters)
-        worker = threading.current_thread().name
+        worker = f"pid-{os.getpid()}:{threading.current_thread().name}"
         try:
             patched = apply_parameters(self.base_config, self.config.parameters, parameters)
             config_hash = fingerprint(patched)
@@ -125,9 +158,15 @@ class OptimizationEngine:
                         window=window,
                         evaluation_index=evaluation_index,
                     )
-                    report = validate_report_mapping(self.evaluator(stressed, context))
-                    validate_report_finite(report)
-                    metric_sets.append(normalize_report(report))
+                    try:
+                        report = validate_report_mapping(self.evaluator(stressed, context))
+                        validate_report_finite(report)
+                        metric_sets.append(normalize_report(report))
+                    finally:
+                        # Walk-forward/stress evaluators may allocate large temporary
+                        # frames. Release only when the adaptive pressure policy says
+                        # doing so is worthwhile; this keeps normal trials fast.
+                        release_phase_memory()
                     evaluation_index += 1
             aggregate_suffixes = (
                 "__median",
@@ -204,22 +243,111 @@ class OptimizationEngine:
                         f"optimization exceeded max_failures={self.config.max_failures}"
                     )
 
-        if self.config.workers == 1:
+        if self.config.workers == 1 or len(pending) == 1:
+            self.parallel_backend = "serial"
+            self.peak_workers = 1
             for trial_id, parameters in pending:
                 accept(self._evaluate_one(trial_id, parameters))
             return tuple(records)
 
-        executor = ThreadPoolExecutor(
-            max_workers=self.config.workers,
-            thread_name_prefix="hedge-opt",
+        governor = AdaptiveResourceGovernor()
+        first = governor.snapshot()
+        initial = governor.recommended_workers(
+            tasks=len(pending),
+            requested=self.config.workers,
+            current_workers=0,
+            snapshot=first,
         )
-        futures: dict[Future[TrialRecord], int] = {
-            executor.submit(self._evaluate_one, trial_id, parameters): trial_id
-            for trial_id, parameters in pending
-        }
+        self.resource_samples.append(
+            {
+                "system_cpu_percent": first.system_cpu_percent,
+                "source": first.source,
+                "desired_workers": initial,
+                "active_workers": 0,
+                "memory_available_bytes": first.effective_available_memory_bytes,
+            }
+        )
+        if initial <= 1:
+            self.parallel_backend = "serial-resource-limited"
+            self.peak_workers = 1
+            for trial_id, parameters in pending:
+                accept(self._evaluate_one(trial_id, parameters))
+            return tuple(records)
+
+        upper = governor.recommended_workers(
+            tasks=len(pending),
+            requested=-1 if self.config.workers == 0 else self.config.workers,
+            current_workers=0,
+            snapshot=first,
+        )
+        upper = max(initial, upper)
+        context = multiprocessing_context()
+        use_processes = context.get_start_method() == "fork"
+        iterator = iter(pending)
+        futures: dict[Future[TrialRecord], int] = {}
+
+        def submit_until(executor, desired: int) -> None:
+            while len(futures) < desired:
+                try:
+                    trial_id, parameters = next(iterator)
+                except StopIteration:
+                    break
+                if use_processes:
+                    future = executor.submit(_process_evaluate, trial_id, parameters)
+                else:
+                    future = executor.submit(self._evaluate_one, trial_id, parameters)
+                futures[future] = trial_id
+            self.peak_workers = max(self.peak_workers, len(futures))
+
+        global _PROCESS_ENGINE
+        self.peak_workers = 0
+        if use_processes:
+            _PROCESS_ENGINE = self
+            executor = ProcessPoolExecutor(
+                max_workers=upper,
+                mp_context=context,
+                initializer=_process_initializer,
+            )
+            self.parallel_backend = "process-fork-adaptive"
+        else:
+            # Spawn cannot safely serialize arbitrary user evaluator closures.
+            # Preserve correctness on native Windows and still allow NumPy/I/O
+            # overlap; CPU-bound Docker research uses Linux fork processes.
+            executor = ThreadPoolExecutor(
+                max_workers=upper,
+                thread_name_prefix="hedge-opt",
+            )
+            self.parallel_backend = "thread-fallback"
+
         try:
-            for future in as_completed(futures):
-                accept(future.result())
+            submit_until(executor, initial)
+            while futures:
+                done, _ = wait(tuple(futures), return_when=FIRST_COMPLETED)
+                for future in done:
+                    futures.pop(future)
+                    accept(future.result())
+                remaining = len(pending) - len(records)
+                if remaining <= 0:
+                    continue
+                snapshot = governor.snapshot()
+                desired = governor.recommended_workers(
+                    tasks=remaining,
+                    requested=self.config.workers,
+                    current_workers=len(futures),
+                    snapshot=snapshot,
+                )
+                self.resource_samples.append(
+                    {
+                        "system_cpu_percent": snapshot.system_cpu_percent,
+                        "source": snapshot.source,
+                        "desired_workers": desired,
+                        "active_workers": len(futures),
+                        "memory_available_bytes": snapshot.effective_available_memory_bytes,
+                    }
+                )
+                # Busy desktop: do not submit replacement work until active count
+                # naturally falls. Idle desktop: feed more independent trials.
+                submit_until(executor, desired)
         except Exception:
             for future in futures:
                 future.cancel()
@@ -227,6 +355,9 @@ class OptimizationEngine:
             raise
         else:
             executor.shutdown(wait=True)
+        finally:
+            if use_processes:
+                _PROCESS_ENGINE = None
         return tuple(records)
 
     def run(self) -> OptimizationResult:

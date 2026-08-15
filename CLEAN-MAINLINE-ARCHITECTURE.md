@@ -24,6 +24,7 @@ Historical release packages, versioned implementation namespaces and audit evide
 - `freqtrade/hedge/optimization/` — current parameter optimization engine and quality gates.
 - `freqtrade/hedge/research/` — local research control plane and deterministic validation matrix.
 - `freqtrade/freqai/hedge_rl/` — current Hedge ML/RL subsystem.
+  It contains both the stable 21-action Hedge RL contract and the independent MultiDiscrete([5, 5]) risk-level RL contract; neither bypasses planner/risk/execution boundaries.
 - `freqtrade/rpc/api_server/hedge_*` — current read/control API and local UI surfaces.
 
 ## Compatibility policy

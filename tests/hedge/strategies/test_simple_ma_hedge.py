@@ -14,7 +14,7 @@ SYMBOL = "ETH/USDT:USDT"
 
 
 def _bars() -> list[BarEvent]:
-    prices = [Decimal("100") + Decimal(index % 12 - 6) for index in range(72)]
+    prices = [Decimal(100) + Decimal(index % 12 - 6) for index in range(72)]
     result: list[BarEvent] = []
     for index, close in enumerate(prices):
         open_price = prices[index - 1] if index else close
@@ -23,10 +23,10 @@ def _bars() -> list[BarEvent]:
                 START + timedelta(minutes=5 * index),
                 SYMBOL,
                 open_price,
-                max(open_price, close) + Decimal("2"),
-                min(open_price, close) - Decimal("2"),
+                max(open_price, close) + Decimal(2),
+                min(open_price, close) - Decimal(2),
                 close,
-                Decimal("1000"),
+                Decimal(1000),
             )
         )
     return result
@@ -34,13 +34,13 @@ def _bars() -> list[BarEvent]:
 
 def test_signals_are_bounded_and_directional() -> None:
     strategy = SimpleDualLegMaHedgeStrategy(
-        SimpleDualLegMaConfig(fast_window=2, slow_window=4, sensitivity=Decimal("10"))
+        SimpleDualLegMaConfig(fast_window=2, slow_window=4, sensitivity=Decimal(10))
     )
     long_signal, short_signal = strategy.signal(
-        [Decimal("100"), Decimal("100"), Decimal("90"), Decimal("90")]
+        [Decimal(100), Decimal(100), Decimal(90), Decimal(90)]
     )
-    assert Decimal("0") <= long_signal <= Decimal("1")
-    assert Decimal("0") <= short_signal <= Decimal("1")
+    assert Decimal(0) <= long_signal <= Decimal(1)
+    assert Decimal(0) <= short_signal <= Decimal(1)
     assert long_signal > short_signal
 
 
@@ -68,16 +68,16 @@ def test_simple_strategy_runs_dual_leg_backtest() -> None:
         initial_entry_fraction=Decimal("0.60"),
         max_grid_layers=3,
         cooldown_seconds=0,
-        trailing_rebound=Decimal("0"),
+        trailing_rebound=Decimal(0),
     )
     result = HedgeBacktesting(
-        initial_balance=Decimal("1000"),
+        initial_balance=Decimal(1000),
         planner_config=config,
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     ).run(SimpleDualLegMaHedgeStrategy().events(_bars()))
     final = result.snapshots[-1]
     assert final.long_quantity > 0
     assert final.short_quantity > 0
     assert result.report["dual_leg_duration_seconds"] > 0
-    assert result.report["pnl_reconciliation_error"] == Decimal("0")
+    assert result.report["pnl_reconciliation_error"] == Decimal(0)
     assert result.report["liquidated"] is False

@@ -4,6 +4,8 @@ import ast
 import json
 from pathlib import Path
 
+from freqtrade.configuration import setup_utils_configuration
+from freqtrade.enums import RunMode
 from freqtrade.exceptions import OperationalException
 from freqtrade.hedge.config import normalize_hedge_config
 from freqtrade.hedge.operations.config import operations_config, validate_operations_config
@@ -18,6 +20,18 @@ def test_operations_example_is_safe_and_valid() -> None:
     assert validate_operations_config(config) == ()
     assert config["hedge"]["read_only"] is True
     assert config["hedge"]["live_trading_enabled"] is False
+
+
+def test_paper_example_passes_full_freqtrade_configuration_pipeline() -> None:
+    path = ROOT / "config_examples/config_hedge_paper.example.json"
+    config = setup_utils_configuration(
+        {"command": "hedge-db", "config": [str(path)]},
+        RunMode.UTIL_NO_EXCHANGE,
+    )
+    assert config["dry_run"] is True
+    assert config["api_server"]["enabled"] is False
+    assert config["api_server"]["listen_ip_address"] == "127.0.0.1"
+    assert config["hedge"]["read_only"] is True
 
 
 def test_project_integration_surfaces_are_present_and_parseable() -> None:

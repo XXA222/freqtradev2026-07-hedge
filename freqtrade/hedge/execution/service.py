@@ -6,6 +6,7 @@ import hashlib
 import math
 import re
 from contextlib import contextmanager
+from collections import deque
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
@@ -18,7 +19,12 @@ from uuid import UUID, uuid4
 from .client_order_id import build_client_order_id, validate_client_order_id
 from .idempotency import IdempotencyPort, ReservationState
 from .kill_switch import KillSwitch
-from .state_machine import InvalidOrderTransition, OrderLifecycle, OrderState
+from .state_machine import (
+    TERMINAL_STATES,
+    InvalidOrderTransition,
+    OrderLifecycle,
+    OrderState,
+)
 
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _SYMBOL_ALLOWED = re.compile(r"^[A-Za-z0-9/_:-]+$")
@@ -334,11 +340,11 @@ class ApprovedOrderIntent:
 class ExternalOrderSnapshot:
     client_order_id: str
     status: OrderState
-    filled_quantity: Decimal = Decimal("0")
+    filled_quantity: Decimal = Decimal(0)
     average_price: Decimal | None = None
     exchange_order_id: str | None = None
     exchange_trade_id: str | None = None
-    last_fill_fee: Decimal = Decimal("0")
+    last_fill_fee: Decimal = Decimal(0)
     fee_currency: str | None = "USDT"
     reason: str | None = None
     observed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -442,7 +448,7 @@ class ExecutionOrder:
             if approved <= 0 or self.lifecycle.filled_quantity != approved:
                 raise ValueError("FILLED lifecycle must equal approved_quantity")
         if self.lifecycle.status is OrderState.PARTIAL:
-            if not (Decimal("0") < self.lifecycle.filled_quantity < approved):
+            if not (Decimal(0) < self.lifecycle.filled_quantity < approved):
                 raise ValueError("PARTIAL lifecycle must be below approved_quantity")
         created_at = _aware(self.created_at, field_name="created_at")
         object.__setattr__(self, "approved_quantity", approved)
@@ -559,7 +565,18 @@ class ExecutionStorePort(Protocol):
         leg_key: tuple[str, str, PositionSide],
     ) -> bool: ...
 
-    def list_orders(self) -> Sequence[ExecutionOrder]: ...
+    def list_orders(
+        self,
+        *,
+        account_id: str | None = None,
+        symbol: str | None = None,
+        position_side: PositionSide | None = None,
+        statuses: Sequence[OrderState] | None = None,
+        action_group_id: UUID | None = None,
+        include_terminal: bool = True,
+        limit: int | None = None,
+        newest_first: bool = False,
+    ) -> Sequence[ExecutionOrder]: ...
 
 
 class AuditPort(Protocol):
@@ -581,9 +598,48 @@ class UnknownOrderResolverPort(Protocol):
 
 
 class InMemoryExecutionStore:
-    def __init__(self) -> None:
+    """Bounded current-state projection with O(active) hot-path queries."""
+
+    def __init__(self, *, terminal_retention: int = 2000) -> None:
+        if not isinstance(terminal_retention, int) or isinstance(terminal_retention, bool):
+            raise TypeError("terminal_retention must be an integer")
+        if terminal_retention <= 0:
+            raise ValueError("terminal_retention must be positive")
         self._orders: dict[str, ExecutionOrder] = {}
+        self._open: dict[str, None] = {}
+        self._unknown: dict[tuple[str, str, PositionSide], set[str]] = {}
+        self._terminal_fifo: deque[str] = deque()
+        # Python/Windows clock resolution can produce identical created_at values
+        # for multiple submissions in the same tick.  Keep an explicit insertion
+        # ordinal so newest_first remains true submission order even on ties.
+        self._insertion_sequence: dict[str, int] = {}
+        self._next_insertion_sequence = 0
+        self._terminal_retention = terminal_retention
         self._lock = RLock()
+
+    def _retire_terminal_locked(self, client_order_id: str) -> None:
+        self._terminal_fifo.append(client_order_id)
+        while len(self._terminal_fifo) > self._terminal_retention:
+            stale = self._terminal_fifo.popleft()
+            stale_order = self._orders.get(stale)
+            if stale_order is not None and stale_order.lifecycle.terminal:
+                self._orders.pop(stale, None)
+                self._open.pop(stale, None)
+                self._insertion_sequence.pop(stale, None)
+
+    def _update_unknown_index_locked(
+        self,
+        order: ExecutionOrder,
+        previous: ExecutionOrder | None,
+    ) -> None:
+        if previous is not None and previous.lifecycle.status is OrderState.UNKNOWN:
+            previous_bucket = self._unknown.get(previous.leg_key)
+            if previous_bucket is not None:
+                previous_bucket.discard(previous.client_order_id)
+                if not previous_bucket:
+                    self._unknown.pop(previous.leg_key, None)
+        if order.lifecycle.status is OrderState.UNKNOWN:
+            self._unknown.setdefault(order.leg_key, set()).add(order.client_order_id)
 
     def put(self, order: ExecutionOrder) -> None:
         if not isinstance(order, ExecutionOrder):
@@ -598,7 +654,22 @@ class InMemoryExecutionStore:
                     and order != current
                 ):
                     raise ValueError("same lifecycle version contains conflicting data")
+            if current is None:
+                self._insertion_sequence[order.client_order_id] = (
+                    self._next_insertion_sequence
+                )
+                self._next_insertion_sequence += 1
             self._orders[order.client_order_id] = order
+            self._update_unknown_index_locked(order, current)
+            became_terminal = order.lifecycle.terminal and (
+                current is None or not current.lifecycle.terminal
+            )
+            if order.lifecycle.terminal:
+                self._open.pop(order.client_order_id, None)
+                if became_terminal:
+                    self._retire_terminal_locked(order.client_order_id)
+            else:
+                self._open.setdefault(order.client_order_id, None)
 
     def get_by_client_order_id(self, client_order_id: str) -> ExecutionOrder | None:
         with self._lock:
@@ -609,19 +680,82 @@ class InMemoryExecutionStore:
         leg_key: tuple[str, str, PositionSide],
     ) -> bool:
         with self._lock:
-            return any(
-                order.leg_key == leg_key and order.lifecycle.status is OrderState.UNKNOWN
-                for order in self._orders.values()
-            )
+            return bool(self._unknown.get(leg_key))
 
-    def list_orders(self) -> tuple[ExecutionOrder, ...]:
+    @staticmethod
+    def _matches(
+        order: ExecutionOrder,
+        *,
+        account_id: str | None,
+        symbol: str | None,
+        position_side: PositionSide | None,
+        statuses: frozenset[OrderState] | None,
+        action_group_id: UUID | None,
+        include_terminal: bool,
+    ) -> bool:
+        if account_id is not None and order.intent.account_id != account_id:
+            return False
+        if symbol is not None and order.intent.symbol != symbol:
+            return False
+        if position_side is not None and order.intent.position_side is not position_side:
+            return False
+        if statuses is not None and order.lifecycle.status not in statuses:
+            return False
+        if action_group_id is not None and order.intent.action_group_id != action_group_id:
+            return False
+        return include_terminal or not order.lifecycle.terminal
+
+    def list_orders(
+        self,
+        *,
+        account_id: str | None = None,
+        symbol: str | None = None,
+        position_side: PositionSide | None = None,
+        statuses: Sequence[OrderState] | None = None,
+        action_group_id: UUID | None = None,
+        include_terminal: bool = True,
+        limit: int | None = None,
+        newest_first: bool = False,
+    ) -> tuple[ExecutionOrder, ...]:
+        normalized_statuses = None if statuses is None else frozenset(statuses)
         with self._lock:
-            return tuple(
-                sorted(
-                    self._orders.values(),
-                    key=lambda order: (order.created_at, order.client_order_id),
-                )
+            source = (
+                self._orders.values()
+                if include_terminal
+                else (self._orders[client_id] for client_id in self._open)
             )
+            rows = [
+                order
+                for order in source
+                if self._matches(
+                    order,
+                    account_id=account_id,
+                    symbol=symbol,
+                    position_side=position_side,
+                    statuses=normalized_statuses,
+                    action_group_id=action_group_id,
+                    include_terminal=include_terminal,
+                )
+            ]
+            rows.sort(
+                key=lambda order: (
+                    order.created_at,
+                    self._insertion_sequence.get(order.client_order_id, -1),
+                ),
+                reverse=newest_first,
+            )
+            if limit is not None:
+                rows = rows[:limit]
+            return tuple(rows)
+
+    def collection_gauges(self) -> dict[str, int]:
+        with self._lock:
+            return {
+                "orders": len(self._orders),
+                "open_orders": len(self._open),
+                "unknown_orders": sum(len(bucket) for bucket in self._unknown.values()),
+                "retained_terminal_orders": len(self._terminal_fifo),
+            }
 
 
 class AllowAllRiskApproval:
@@ -637,8 +771,12 @@ class AuditRecord:
 
 
 class InMemoryAuditLog:
-    def __init__(self) -> None:
-        self.records: list[AuditRecord] = []
+    def __init__(self, *, capacity: int = 10_000) -> None:
+        if not isinstance(capacity, int) or isinstance(capacity, bool):
+            raise TypeError("capacity must be an integer")
+        if capacity <= 0:
+            raise ValueError("capacity must be positive")
+        self.records: deque[AuditRecord] = deque(maxlen=capacity)
         self._lock = RLock()
 
     def emit(self, event: str, payload: Mapping[str, Any]) -> None:
@@ -1138,24 +1276,22 @@ class ExecutionService:
         if action_group_id is not None:
             group_id = _uuid(action_group_id, field_name="action_group_id")
 
-        selected: list[ExecutionOrder] = []
-        for order in reversed(tuple(self._store.list_orders())):
-            if account is not None and order.intent.account_id != account:
-                continue
-            if normalized_symbol is not None and order.intent.symbol != normalized_symbol:
-                continue
-            if side is not None and order.intent.position_side is not side:
-                continue
-            if normalized_statuses is not None and order.lifecycle.status not in normalized_statuses:
-                continue
-            if group_id is not None and order.intent.action_group_id != group_id:
-                continue
-            if not include_terminal and order.lifecycle.terminal:
-                continue
-            selected.append(order)
-            if limit is not None and len(selected) >= limit:
-                break
-        return tuple(selected)
+        return tuple(
+            self._store.list_orders(
+                account_id=account,
+                symbol=normalized_symbol,
+                position_side=side,
+                statuses=(
+                    None
+                    if normalized_statuses is None
+                    else tuple(normalized_statuses)
+                ),
+                action_group_id=group_id,
+                include_terminal=include_terminal,
+                limit=limit,
+                newest_first=True,
+            )
+        )
 
     def action_group_orders(
         self,
@@ -1480,7 +1616,7 @@ class ExecutionService:
             reason=",".join(approval.reason_codes) or "risk_rejected",
             occurred_at=now,
         )
-        order = ExecutionOrder(intent, client_id, Decimal("0"), lifecycle, now)
+        order = ExecutionOrder(intent, client_id, Decimal(0), lifecycle, now)
         self._store.put(order)
         self._safe_metric("intent", "risk_rejected")
         self._safe_audit("ORDER_INTENT_REJECTED", self._audit_payload(order))

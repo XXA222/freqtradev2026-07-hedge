@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import signal
 import subprocess
@@ -19,6 +20,9 @@ from .readiness import DeploymentReadiness, validate_security_readiness_report
 from .single_instance import SingleInstanceLock
 from .state import RuntimePhase, RuntimeState, RuntimeStateStore
 
+
+
+logger = logging.getLogger(__name__)
 
 class ChildProcess(Protocol):
     pid: int
@@ -319,4 +323,8 @@ class HedgeProcessSupervisor:
             try:
                 signal.signal(candidate, handler)
             except (ValueError, OSError):
-                pass
+                logger.debug(
+                    "Unable to install deployment supervisor signal handler for %s",
+                    candidate,
+                    exc_info=True,
+                )

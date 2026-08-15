@@ -46,8 +46,8 @@ def _position(side: PositionSide, amount: str, *, source: str) -> PositionRecord
         symbol="ETH/USDT:USDT",
         position_side=side,
         amount=Decimal(amount),
-        entry_price=Decimal("2000"),
-        mark_price=Decimal("2001"),
+        entry_price=Decimal(2000),
+        mark_price=Decimal(2001),
         exchange="binance" if source == "EXCHANGE" else "paper",
         account_id="main",
         source=source,
@@ -57,14 +57,14 @@ def _position(side: PositionSide, amount: str, *, source: str) -> PositionRecord
 def _risk() -> AccountRiskSnapshot:
     return AccountRiskSnapshot(
         account_id="main",
-        equity=Decimal("10000"),
-        wallet_balance=Decimal("10000"),
-        available_balance=Decimal("8000"),
-        initial_margin=Decimal("1000"),
-        maintenance_margin=Decimal("100"),
-        gross_long_notional=Decimal("2001"),
-        gross_short_notional=Decimal("0"),
-        net_notional=Decimal("2001"),
+        equity=Decimal(10000),
+        wallet_balance=Decimal(10000),
+        available_balance=Decimal(8000),
+        initial_margin=Decimal(1000),
+        maintenance_margin=Decimal(100),
+        gross_long_notional=Decimal(2001),
+        gross_short_notional=Decimal(0),
+        net_notional=Decimal(2001),
     )
 
 
@@ -268,7 +268,7 @@ def test_market_rules_prefer_exchange_metadata_over_config() -> None:
     assert rules.tick_size == Decimal("0.01")
     assert rules.qty_step == Decimal("0.001")
     assert rules.min_qty == Decimal("0.005")
-    assert rules.min_notional == Decimal("10")
+    assert rules.min_notional == Decimal(10)
 
 
 def test_strict_execution_composition_rejects_silent_test_defaults() -> None:
@@ -306,13 +306,13 @@ def _market(timestamp: datetime, mark: str) -> MarketSnapshot:
     return MarketSnapshot(
         symbol="ETH/USDT:USDT",
         timestamp=timestamp,
-        bid=value - Decimal("1"),
-        ask=value + Decimal("1"),
+        bid=value - Decimal(1),
+        ask=value + Decimal(1),
         mark=value,
         tick_size=Decimal("0.01"),
         qty_step=Decimal("0.001"),
         min_qty=Decimal("0.001"),
-        min_notional=Decimal("5"),
+        min_notional=Decimal(5),
     )
 
 
@@ -324,7 +324,7 @@ def _bar(market: MarketSnapshot) -> BarEvent:
         high=market.ask,
         low=market.bid,
         close=market.mark,
-        volume=Decimal("100"),
+        volume=Decimal(100),
     )
 
 
@@ -491,13 +491,13 @@ def test_sql_execution_ledger_commits_intent_fill_audit_and_outbox(tmp_path) -> 
         action=IntentAction.OPEN,
         quantity=Decimal("0.1"),
         idempotency_key="idem-ledger-1",
-        limit_price=Decimal("2000"),
+        limit_price=Decimal(2000),
         metadata={"exchange": "binance"},
     )
     lifecycle = OrderLifecycle(
         status=OrderState.PARTIAL,
         filled_quantity=Decimal("0.05"),
-        average_price=Decimal("2000"),
+        average_price=Decimal(2000),
         exchange_order_id="paper-order-1",
         version=2,
         updated_at=now,
@@ -521,7 +521,7 @@ def test_sql_execution_ledger_commits_intent_fill_audit_and_outbox(tmp_path) -> 
         action=ContractIntentAction.OPEN,
         order_side=ContractOrderSide.BUY,
         quantity=Decimal("0.05"),
-        price=Decimal("2000"),
+        price=Decimal(2000),
         fee=Decimal("0.1"),
         exchange_time=now,
         observed_time=now,

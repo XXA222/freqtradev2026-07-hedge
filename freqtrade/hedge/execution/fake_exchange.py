@@ -22,7 +22,7 @@ from .service import (
     InMemoryExecutionStore,
     RiskApprovalPort,
 )
-from .state_machine import OrderState
+from .state_machine import TERMINAL_STATES, OrderState
 from .unknown_resolver import UnknownOrderResolver
 from freqtrade.hedge.telemetry.metrics import HedgeMetrics
 
@@ -33,27 +33,81 @@ class _TimeoutBehavior:
 
 
 class FakeExchangeExecutionPort:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        terminal_retention: int = 2_000,
+        recent_fill_capacity: int = 10_000,
+        call_history_capacity: int = 10_000,
+    ) -> None:
+        for name, value in (
+            ("terminal_retention", terminal_retention),
+            ("recent_fill_capacity", recent_fill_capacity),
+            ("call_history_capacity", call_history_capacity),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"{name} must be an integer")
+            if value <= 0:
+                raise ValueError(f"{name} must be positive")
         self.submit_calls: list[ApprovedOrderIntent] = []
         self.cancel_calls: list[str] = []
         self.query_calls: list[str] = []
         self.open_order_queries = 0
         self.recent_fill_queries = 0
+        self._call_history_capacity = call_history_capacity
         self._behaviors: deque[
             ExternalOrderSnapshot | Exception | _TimeoutBehavior
         ] = deque()
         self._orders: dict[str, ExternalOrderSnapshot] = {}
         self._approved: dict[str, ApprovedOrderIntent] = {}
-        self._recent_fills: list[ExternalOrderSnapshot] = []
+        self._terminal_fifo: deque[str] = deque()
+        self._terminal_ids: set[str] = set()
+        self._terminal_retention = terminal_retention
+        self._recent_fills: deque[ExternalOrderSnapshot] = deque(
+            maxlen=recent_fill_capacity
+        )
         self._trade_sequence = 0
-        self._fills_by_trade_id: dict[str, tuple[str, Decimal, Decimal, Decimal, str | None]] = {}
+        self._fills_by_trade_id: dict[
+            str, tuple[str, Decimal, Decimal, Decimal, str | None]
+        ] = {}
+        self._trade_ids_by_client: dict[str, set[str]] = {}
         self._lock = RLock()
+
+    def _append_call_locked(self, rows: list[object], value: object) -> None:
+        rows.append(value)
+        overflow = len(rows) - self._call_history_capacity
+        if overflow > 0:
+            del rows[:overflow]
+
+    def _remember_trade_locked(self, trade_id: str, client_order_id: str) -> None:
+        self._trade_ids_by_client.setdefault(client_order_id, set()).add(trade_id)
+
+    def _evict_terminal_locked(self) -> None:
+        while len(self._terminal_fifo) > self._terminal_retention:
+            stale = self._terminal_fifo.popleft()
+            self._terminal_ids.discard(stale)
+            snapshot = self._orders.get(stale)
+            if snapshot is None or snapshot.status not in TERMINAL_STATES:
+                continue
+            self._orders.pop(stale, None)
+            self._approved.pop(stale, None)
+            for trade_id in self._trade_ids_by_client.pop(stale, set()):
+                self._fills_by_trade_id.pop(trade_id, None)
+
+    def _store_snapshot_locked(self, snapshot: ExternalOrderSnapshot) -> None:
+        client_order_id = snapshot.client_order_id
+        self._orders[client_order_id] = snapshot
+        if snapshot.status in TERMINAL_STATES:
+            if client_order_id not in self._terminal_ids:
+                self._terminal_ids.add(client_order_id)
+                self._terminal_fifo.append(client_order_id)
+            self._evict_terminal_locked()
 
     def queue_snapshot(
         self,
         status: OrderState,
         *,
-        filled_quantity: Decimal | str = Decimal("0"),
+        filled_quantity: Decimal | str = Decimal(0),
         average_price: Decimal | str | None = None,
         exchange_order_id: str | None = None,
         exchange_trade_id: str | None = None,
@@ -94,7 +148,7 @@ class FakeExchangeExecutionPort:
         if not isinstance(approved, ApprovedOrderIntent):
             raise TypeError("approved must be an ApprovedOrderIntent")
         with self._lock:
-            self.submit_calls.append(approved)
+            self._append_call_locked(self.submit_calls, approved)
             self._approved[approved.client_order_id] = approved
             behavior = (
                 self._behaviors.popleft()
@@ -110,12 +164,12 @@ class FakeExchangeExecutionPort:
                         approved.client_order_id,
                         behavior.recoverable_snapshot,
                     )
-                    self._orders[approved.client_order_id] = snapshot
+                    self._store_snapshot_locked(snapshot)
                 raise TimeoutError("fake submit timeout")
             if isinstance(behavior, Exception):
                 raise behavior
             snapshot = self._normalize(approved.client_order_id, behavior)
-            self._orders[approved.client_order_id] = snapshot
+            self._store_snapshot_locked(snapshot)
             return snapshot
 
     def query_order(
@@ -124,7 +178,7 @@ class FakeExchangeExecutionPort:
         client_order_id: str,
     ) -> ExternalOrderSnapshot | None:
         with self._lock:
-            self.query_calls.append(client_order_id)
+            self._append_call_locked(self.query_calls, client_order_id)
             return self._orders.get(client_order_id)
 
     def list_open_orders(
@@ -171,7 +225,7 @@ class FakeExchangeExecutionPort:
         client_order_id: str,
     ) -> ExternalOrderSnapshot:
         with self._lock:
-            self.cancel_calls.append(client_order_id)
+            self._append_call_locked(self.cancel_calls, client_order_id)
             current = self._orders.get(client_order_id)
             if current is None:
                 return ExternalOrderSnapshot(
@@ -187,7 +241,7 @@ class FakeExchangeExecutionPort:
                 exchange_order_id=current.exchange_order_id,
                 observed_at=datetime.now(UTC),
             )
-            self._orders[client_order_id] = canceled
+            self._store_snapshot_locked(canceled)
             return canceled
 
     def restore_order(
@@ -205,7 +259,7 @@ class FakeExchangeExecutionPort:
             raise ValueError("restored approved intent and snapshot ids differ")
         with self._lock:
             self._approved[approved.client_order_id] = approved
-            self._orders[approved.client_order_id] = snapshot
+            self._store_snapshot_locked(snapshot)
 
     def remember_fill_identity(
         self,
@@ -214,7 +268,7 @@ class FakeExchangeExecutionPort:
         client_order_id: str,
         quantity: Decimal,
         price: Decimal,
-        fee: Decimal = Decimal("0"),
+        fee: Decimal = Decimal(0),
         fee_currency: str | None = "USDT",
     ) -> None:
         """Seed an immutable trade identity during SQL recovery."""
@@ -243,12 +297,13 @@ class FakeExchangeExecutionPort:
             if current is not None and current != identity:
                 raise ValueError("recovered trade id has conflicting fill data")
             self._fills_by_trade_id[trade_id] = identity
+            self._remember_trade_locked(trade_id, str(client_order_id))
 
     def set_order(self, snapshot: ExternalOrderSnapshot) -> None:
         if not isinstance(snapshot, ExternalOrderSnapshot):
             raise TypeError("snapshot must be an ExternalOrderSnapshot")
         with self._lock:
-            self._orders[snapshot.client_order_id] = snapshot
+            self._store_snapshot_locked(snapshot)
 
     def acknowledge_order(
         self,
@@ -272,7 +327,7 @@ class FakeExchangeExecutionPort:
                 ),
                 observed_at=datetime.now(UTC),
             )
-            self._orders[client_order_id] = snapshot
+            self._store_snapshot_locked(snapshot)
             return snapshot
 
     def fill_order(
@@ -288,7 +343,7 @@ class FakeExchangeExecutionPort:
         """Apply one incremental fake fill and return the cumulative order snapshot."""
         fill_quantity = Decimal(quantity)
         fill_price = Decimal(price)
-        fill_fee = Decimal("0") if fee is None else Decimal(fee)
+        fill_fee = Decimal(0) if fee is None else Decimal(fee)
         fee_currency = None if fee_currency is None else str(fee_currency).strip().upper()
         if not fill_quantity.is_finite() or fill_quantity <= 0:
             raise ValueError("fill quantity must be positive and finite")
@@ -323,7 +378,7 @@ class FakeExchangeExecutionPort:
             previous_notional = (
                 current.filled_quantity * current.average_price
                 if current.average_price is not None
-                else Decimal("0")
+                else Decimal(0)
             )
             average_price = (
                 previous_notional + fill_quantity * fill_price
@@ -365,10 +420,11 @@ class FakeExchangeExecutionPort:
                 reason="fake_incremental_fill",
                 observed_at=now,
             )
-            self._orders[client_order_id] = cumulative_snapshot
+            self._store_snapshot_locked(cumulative_snapshot)
             self._fills_by_trade_id[trade_id] = (
                 client_order_id, fill_quantity, fill_price, fill_fee, fee_currency
             )
+            self._remember_trade_locked(trade_id, client_order_id)
             self._recent_fills.append(incremental_fill)
             return cumulative_snapshot
 
@@ -390,7 +446,7 @@ class FakeExchangeExecutionPort:
                 reason=reason,
                 observed_at=datetime.now(UTC),
             )
-            self._orders[client_order_id] = snapshot
+            self._store_snapshot_locked(snapshot)
             return snapshot
 
     def mark_unknown(
@@ -406,7 +462,7 @@ class FakeExchangeExecutionPort:
                 client_order_id=client_order_id,
                 status=OrderState.UNKNOWN,
                 filled_quantity=(
-                    current.filled_quantity if current is not None else Decimal("0")
+                    current.filled_quantity if current is not None else Decimal(0)
                 ),
                 average_price=(current.average_price if current is not None else None),
                 exchange_order_id=(
@@ -415,7 +471,7 @@ class FakeExchangeExecutionPort:
                 reason=reason,
                 observed_at=datetime.now(UTC),
             )
-            self._orders[client_order_id] = snapshot
+            self._store_snapshot_locked(snapshot)
             return snapshot
 
     def list_orders(self) -> tuple[ExternalOrderSnapshot, ...]:
@@ -430,6 +486,19 @@ class FakeExchangeExecutionPort:
             raise TypeError("snapshot must be an ExternalOrderSnapshot")
         with self._lock:
             self._recent_fills.append(snapshot)
+
+    def collection_gauges(self) -> dict[str, int]:
+        with self._lock:
+            return {
+                "orders": len(self._orders),
+                "approved": len(self._approved),
+                "retained_terminal_orders": len(self._terminal_fifo),
+                "recent_fills": len(self._recent_fills),
+                "fill_identities": len(self._fills_by_trade_id),
+                "submit_call_history": len(self.submit_calls),
+                "cancel_call_history": len(self.cancel_calls),
+                "query_call_history": len(self.query_calls),
+            }
 
     def _require_approved(self, client_order_id: str) -> ApprovedOrderIntent:
         approved = self._approved.get(client_order_id)

@@ -29,8 +29,8 @@ def _ready_inputs(**overrides):
         single_writer_lease_valid=True,
         position_mode="hedge",
         margin_mode="cross",
-        configured_leverage=Decimal("3"),
-        observed_leverages=(Decimal("3"),),
+        configured_leverage=Decimal(3),
+        observed_leverages=(Decimal(3),),
         unmanaged_position_count=0,
         unmanaged_order_count=0,
         rest_snapshot_valid=True,
@@ -50,21 +50,21 @@ def _portfolio():
             account_id="main",
             symbol="ETH/USDT:USDT",
             position_side=PositionSide.LONG,
-            quantity=Decimal("2"),
-            mark_price=Decimal("2000"),
-            leverage=Decimal("4"),
-            maintenance_margin=Decimal("40"),
-            liquidation_price=Decimal("1500"),
+            quantity=Decimal(2),
+            mark_price=Decimal(2000),
+            leverage=Decimal(4),
+            maintenance_margin=Decimal(40),
+            liquidation_price=Decimal(1500),
         ),
         PositionRiskLeg(
             account_id="main",
             symbol="ETH/USDT:USDT",
             position_side=PositionSide.SHORT,
-            quantity=Decimal("1"),
-            mark_price=Decimal("1900"),
-            leverage=Decimal("4"),
-            maintenance_margin=Decimal("20"),
-            liquidation_price=Decimal("2400"),
+            quantity=Decimal(1),
+            mark_price=Decimal(1900),
+            leverage=Decimal(4),
+            maintenance_margin=Decimal(20),
+            liquidation_price=Decimal(2400),
         ),
     )
     pending = (
@@ -74,8 +74,8 @@ def _portfolio():
             position_side=PositionSide.LONG,
             action=PositionAction.INCREASE,
             remaining_quantity=Decimal("0.5"),
-            reference_price=Decimal("2000"),
-            leverage=Decimal("4"),
+            reference_price=Decimal(2000),
+            leverage=Decimal(4),
         ),
         PendingOrderRisk(
             account_id="main",
@@ -83,15 +83,15 @@ def _portfolio():
             position_side=PositionSide.SHORT,
             action=PositionAction.REDUCE,
             remaining_quantity=Decimal("0.25"),
-            reference_price=Decimal("1900"),
-            leverage=Decimal("4"),
+            reference_price=Decimal(1900),
+            leverage=Decimal(4),
         ),
     )
     return build_risk_portfolio(
         account_id="main",
-        equity=Decimal("10000"),
-        wallet_balance=Decimal("10000"),
-        available_balance=Decimal("7500"),
+        equity=Decimal(10000),
+        wallet_balance=Decimal(10000),
+        available_balance=Decimal(7500),
         positions=positions,
         pending_orders=pending,
         observed_at_ms=1000,
@@ -115,10 +115,10 @@ def _coordinator(*, limits=None, reservation_clock=None, lock_clock=None):
             or RiskLimits(
                 max_margin_utilization=Decimal("0.8"),
                 min_liquidation_buffer_ratio=Decimal("0.1"),
-                max_gross_notional=Decimal("20000"),
-                max_gross_exposure_ratio=Decimal("2"),
-                max_leg_notional=Decimal("10000"),
-                max_symbol_gross_notional=Decimal("15000"),
+                max_gross_notional=Decimal(20000),
+                max_gross_exposure_ratio=Decimal(2),
+                max_leg_notional=Decimal(10000),
+                max_symbol_gross_notional=Decimal(15000),
             )
         ),
         locks=locks,
@@ -134,9 +134,9 @@ def _coordinator(*, limits=None, reservation_clock=None, lock_clock=None):
 def test_portfolio_builds_account_and_side_aware_request() -> None:
     portfolio = _portfolio()
     account = portfolio.account
-    assert account.gross_long_notional == Decimal("4000")
-    assert account.gross_short_notional == Decimal("1900")
-    assert account.net_notional == Decimal("2100")
+    assert account.gross_long_notional == Decimal(4000)
+    assert account.gross_short_notional == Decimal(1900)
+    assert account.net_notional == Decimal(2100)
     assert account.pending_order_notional == Decimal("1000.0")
     assert account.pending_long_notional == Decimal("1000.0")
     assert account.pending_short_notional == 0
@@ -145,14 +145,14 @@ def test_portfolio_builds_account_and_side_aware_request() -> None:
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.SHORT,
         action=PositionAction.REDUCE,
-        requested_quantity=Decimal("1"),
-        reference_price=Decimal("1900"),
-        leverage=Decimal("4"),
+        requested_quantity=Decimal(1),
+        reference_price=Decimal(1900),
+        leverage=Decimal(4),
     )
-    assert reduce_request.confirmed_quantity == Decimal("1")
+    assert reduce_request.confirmed_quantity == Decimal(1)
     assert reduce_request.pending_reduce_quantity == Decimal("0.25")
-    assert reduce_request.current_leg_notional == Decimal("1900")
-    assert reduce_request.current_symbol_gross_notional == Decimal("5900")
+    assert reduce_request.current_leg_notional == Decimal(1900)
+    assert reduce_request.current_symbol_gross_notional == Decimal(5900)
 
 
 def test_side_specific_and_free_margin_limits_clip_quantity() -> None:
@@ -160,10 +160,10 @@ def test_side_specific_and_free_margin_limits_clip_quantity() -> None:
     limits = RiskLimits(
         max_margin_utilization=Decimal("0.9"),
         min_liquidation_buffer_ratio=Decimal("0.1"),
-        max_gross_notional=Decimal("50000"),
-        max_gross_exposure_ratio=Decimal("5"),
-        max_long_notional=Decimal("6000"),
-        min_available_balance=Decimal("7300"),
+        max_gross_notional=Decimal(50000),
+        max_gross_exposure_ratio=Decimal(5),
+        max_long_notional=Decimal(6000),
+        min_available_balance=Decimal(7300),
     )
     engine = HedgeRiskEngine(limits)
     decision = engine.evaluate_portfolio_order(
@@ -171,9 +171,9 @@ def test_side_specific_and_free_margin_limits_clip_quantity() -> None:
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.LONG,
         action=PositionAction.INCREASE,
-        requested_quantity=Decimal("2"),
-        reference_price=Decimal("2000"),
-        leverage=Decimal("4"),
+        requested_quantity=Decimal(2),
+        reference_price=Decimal(2000),
+        leverage=Decimal(4),
     )
     # 200 USDT free-margin headroom at 4x = 800 USDT = 0.4 ETH.
     assert decision.allowed
@@ -186,9 +186,9 @@ def test_atomic_batch_rolls_back_all_reservations_on_denial() -> None:
     limits = RiskLimits(
         max_margin_utilization=Decimal("0.9"),
         min_liquidation_buffer_ratio=Decimal("0.1"),
-        max_gross_notional=Decimal("7500"),
-        max_gross_exposure_ratio=Decimal("2"),
-        max_single_order_notional=Decimal("1000"),
+        max_gross_notional=Decimal(7500),
+        max_gross_exposure_ratio=Decimal(2),
+        max_single_order_notional=Decimal(1000),
     )
     _writer, _gate, _locks, _state, coordinator = _coordinator(limits=limits)
     first = portfolio.build_request(
@@ -196,16 +196,16 @@ def test_atomic_batch_rolls_back_all_reservations_on_denial() -> None:
         position_side=PositionSide.SHORT,
         action=PositionAction.INCREASE,
         requested_quantity=Decimal("0.3"),
-        reference_price=Decimal("2000"),
-        leverage=Decimal("4"),
+        reference_price=Decimal(2000),
+        leverage=Decimal(4),
     )
     second = portfolio.build_request(
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.LONG,
         action=PositionAction.INCREASE,
-        requested_quantity=Decimal("1"),
-        reference_price=Decimal("2000"),
-        leverage=Decimal("4"),
+        requested_quantity=Decimal(1),
+        reference_price=Decimal(2000),
+        leverage=Decimal(4),
     )
     batch = coordinator.approve_batch(((first, portfolio.account), (second, portfolio.account)))
     assert not batch.allowed
@@ -226,8 +226,8 @@ def test_reservations_expire_and_capacity_is_recovered() -> None:
         position_side=PositionSide.SHORT,
         action=PositionAction.INCREASE,
         requested_quantity=Decimal("0.1"),
-        reference_price=Decimal("2000"),
-        leverage=Decimal("4"),
+        reference_price=Decimal(2000),
+        leverage=Decimal(4),
     )
     approval = coordinator.approve(request=increase_request, account=portfolio.account)
     assert approval.allowed
@@ -240,11 +240,11 @@ def test_reservations_expire_and_capacity_is_recovered() -> None:
         account_id="main",
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.LONG,
-        requested_quantity=Decimal("1"),
-        confirmed_quantity=Decimal("2"),
+        requested_quantity=Decimal(1),
+        confirmed_quantity=Decimal(2),
     )
     key = PositionLockKey("main", "ETH/USDT:USDT", PositionSide.LONG)
-    assert locks.pending_reduce_quantity(key) == Decimal("1")
+    assert locks.pending_reduce_quantity(key) == Decimal(1)
     lock_now[0] = 2.0
     assert locks.pending_reduce_quantity(key) == 0
     assert reduce.expired
@@ -268,8 +268,8 @@ def test_runtime_switches_to_reduce_only_and_keeps_controlled_reduce() -> None:
             PositionSide.SHORT,
             PositionAction.INCREASE,
             Decimal("0.1"),
-            Decimal("1900"),
-            Decimal("4"),
+            Decimal(1900),
+            Decimal(4),
         ),
     )
     assert increase.allowed
@@ -286,8 +286,8 @@ def test_runtime_switches_to_reduce_only_and_keeps_controlled_reduce() -> None:
             PositionSide.LONG,
             PositionAction.INCREASE,
             Decimal("0.1"),
-            Decimal("2000"),
-            Decimal("4"),
+            Decimal(2000),
+            Decimal(4),
         ),
     )
     assert not denied.allowed
@@ -297,9 +297,9 @@ def test_runtime_switches_to_reduce_only_and_keeps_controlled_reduce() -> None:
             "ETH/USDT:USDT",
             PositionSide.SHORT,
             PositionAction.REDUCE,
-            Decimal("1"),
-            Decimal("1900"),
-            Decimal("4"),
+            Decimal(1),
+            Decimal(1900),
+            Decimal(4),
         ),
     )
     assert reduced.allowed
@@ -338,8 +338,8 @@ def test_limits_from_mapping_and_runtime_factory() -> None:
             PositionSide.SHORT,
             PositionAction.INCREASE,
             Decimal("0.1"),
-            Decimal("1900"),
-            Decimal("4"),
+            Decimal(1900),
+            Decimal(4),
         ),
     )
     assert approval.allowed
@@ -398,8 +398,8 @@ def test_runtime_approves_directly_from_authoritative_account_facts() -> None:
             PositionSide.SHORT,
             PositionAction.INCREASE,
             Decimal("0.1"),
-            Decimal("1900"),
-            Decimal("4"),
+            Decimal(1900),
+            Decimal(4),
             intent_id="facts-intent",
             idempotency_key="facts-idem",
             correlation_id="facts-corr",

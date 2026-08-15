@@ -7,6 +7,7 @@ The adapter is fail-closed for confirmations and fail-safe for optional advisory
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -27,6 +28,9 @@ from .models import (
     utc_datetime,
 )
 
+
+
+logger = logging.getLogger(__name__)
 
 class CallbackCompatibilityMode(StrEnum):
     NATIVE_ONLY = "native_only"
@@ -519,7 +523,10 @@ class HedgeStrategyCallbackAdapter:
                         self._normalize_stoploss(value, field_name="hedge_custom_stoploss")
                     )
                 except (TypeError, ValueError):
-                    pass
+                    logger.warning(
+                        "Ignoring invalid hedge_custom_stoploss callback result",
+                        exc_info=True,
+                    )
         if (
             self.legacy_enabled
             and bool(getattr(self.strategy, "use_custom_stoploss", False))
@@ -541,7 +548,10 @@ class HedgeStrategyCallbackAdapter:
                 try:
                     candidates.append(self._normalize_stoploss(value, field_name="custom_stoploss"))
                 except (TypeError, ValueError):
-                    pass
+                    logger.warning(
+                        "Ignoring invalid legacy custom_stoploss callback result",
+                        exc_info=True,
+                    )
         # Closer to zero exits earlier and is therefore the conservative intersection.
         return None if not candidates else max(candidates)
 
@@ -567,7 +577,7 @@ class HedgeStrategyCallbackAdapter:
             )
             if value is not None:
                 normalized = self._finite_or_default(
-                    value, field_name="hedge_custom_roi", default=Decimal("-1")
+                    value, field_name="hedge_custom_roi", default=Decimal(-1)
                 )
                 if normalized >= ZERO:
                     candidates.append(normalized)
@@ -590,7 +600,7 @@ class HedgeStrategyCallbackAdapter:
             )
             if value is not None:
                 normalized = self._finite_or_default(
-                    value, field_name="custom_roi", default=Decimal("-1")
+                    value, field_name="custom_roi", default=Decimal(-1)
                 )
                 if normalized >= ZERO:
                     candidates.append(normalized)

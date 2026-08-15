@@ -43,22 +43,22 @@ def test_runtime_publishes_atomic_ready_projection() -> None:
     position = PositionRecord(
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.LONG,
-        amount=Decimal("1"),
-        entry_price=Decimal("3000"),
-        mark_price=Decimal("3100"),
+        amount=Decimal(1),
+        entry_price=Decimal(3000),
+        mark_price=Decimal(3100),
         exchange="binance",
         account_id="main",
     )
     risk = AccountRiskSnapshot(
         account_id="main",
-        equity=Decimal("10000"),
-        wallet_balance=Decimal("10000"),
-        available_balance=Decimal("8000"),
-        initial_margin=Decimal("1000"),
-        maintenance_margin=Decimal("100"),
-        gross_long_notional=Decimal("3100"),
-        gross_short_notional=Decimal("0"),
-        net_notional=Decimal("3100"),
+        equity=Decimal(10000),
+        wallet_balance=Decimal(10000),
+        available_balance=Decimal(8000),
+        initial_margin=Decimal(1000),
+        maintenance_margin=Decimal(100),
+        gross_long_notional=Decimal(3100),
+        gross_short_notional=Decimal(0),
+        net_notional=Decimal(3100),
     )
     checks = {
         "readonly_service_bound": True,
@@ -81,7 +81,7 @@ def test_runtime_publishes_atomic_ready_projection() -> None:
     query = HedgeRuntimeQuery(lambda: runtime)
 
     assert query.readiness(account_id="main").ready is True
-    assert query.positions(account_id="main", symbol="ETHUSDT").legs[0].quantity == Decimal("1")
+    assert query.positions(account_id="main", symbol="ETHUSDT").legs[0].quantity == Decimal(1)
     assert query.user_stream(account_id="main").state == "CONNECTED"
 
 

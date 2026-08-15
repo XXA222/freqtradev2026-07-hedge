@@ -440,14 +440,19 @@ class DataProvider:
         else:
             raise OperationalException("Dataprovider was not initialized with a pairlist provider.")
 
-    def clear_cache(self):
-        """
-        Clear pair dataframe cache.
+    def clear_cache(self, *, include_backtesting: bool = False):
+        """Clear analyzed pair caches.
+
+        The default intentionally preserves historical backtesting pairs because the
+        upstream Hyperopt lifecycle reuses them across epochs.  One-shot consumers
+        which have already detached their replay inputs can request a full release
+        with ``include_backtesting=True``.  This keeps the upstream default while
+        allowing bounded-memory Hedge backtests to return informative OHLCV caches
+        to the allocator before replay starts.
         """
         self.__cached_pairs = {}
-        # Don't reset backtesting pairs -
-        # otherwise they're reloaded each time during hyperopt due to with analyze_per_epoch
-        # self.__cached_pairs_backtesting = {}
+        if include_backtesting:
+            self.__cached_pairs_backtesting = {}
         self.__slice_index = {}
 
     # Exchange functions

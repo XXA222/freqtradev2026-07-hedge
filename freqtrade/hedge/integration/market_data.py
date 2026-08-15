@@ -55,7 +55,7 @@ def _positive(value: object, fallback: Decimal) -> Decimal:
     return result if result.is_finite() and result > 0 else fallback
 
 
-def _nonnegative(value: object, fallback: Decimal = Decimal("0")) -> Decimal:
+def _nonnegative(value: object, fallback: Decimal = Decimal(0)) -> Decimal:
     try:
         result = Decimal(str(value))
     except (ArithmeticError, TypeError, ValueError):
@@ -65,7 +65,7 @@ def _nonnegative(value: object, fallback: Decimal = Decimal("0")) -> Decimal:
 
 def _step_from_precision(value: object, fallback: Decimal) -> Decimal:
     if isinstance(value, int) and not isinstance(value, bool):
-        return Decimal("1").scaleb(-value)
+        return Decimal(1).scaleb(-value)
     return _positive(value, fallback)
 
 
@@ -73,7 +73,7 @@ def _step_from_precision(value: object, fallback: Decimal) -> Decimal:
 
 def _fee_rate(value: object, fallback: Decimal) -> Decimal:
     result = _nonnegative(value, fallback)
-    return result if result <= Decimal("1") else fallback
+    return result if result <= Decimal(1) else fallback
 
 
 def _exchange_fee_rates(
@@ -249,7 +249,7 @@ def build_ticker_compat_market_input(
     raw_mark = ticker.get("last") or ticker.get("close") or ticker.get("bid") or ticker.get("ask")
     if raw_mark is None:
         raise RuntimeError(f"No usable ticker price for {pair}")
-    mark = _positive(raw_mark, Decimal("0"))
+    mark = _positive(raw_mark, Decimal(0))
     if mark <= 0:
         raise RuntimeError(f"No positive ticker price for {pair}")
     bid = _positive(ticker.get("bid"), mark)

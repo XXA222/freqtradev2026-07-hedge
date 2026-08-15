@@ -131,12 +131,12 @@ def test_signal_and_matching_bar_share_exact_analyzed_dataprovider_ohlcv() -> No
         fallback={},
         ticker={"bid": 2009, "ask": 2011, "last": 999999},
     )
-    assert value.bar.open == Decimal("2000")
-    assert value.bar.high == Decimal("2025")
-    assert value.bar.low == Decimal("1980")
-    assert value.bar.close == Decimal("2010")
-    assert value.market.mark == Decimal("2010")
-    assert value.market.mark != Decimal("999999")
+    assert value.bar.open == Decimal(2000)
+    assert value.bar.high == Decimal(2025)
+    assert value.bar.low == Decimal(1980)
+    assert value.bar.close == Decimal(2010)
+    assert value.market.mark == Decimal(2010)
+    assert value.market.mark != Decimal(999999)
     assert value.bar.timestamp == signal.candle_close_time
     assert value.rules.maker_fee_rate == Decimal("0.00015")
     assert value.rules.taker_fee_rate == Decimal("0.00035")
@@ -154,11 +154,11 @@ def test_funding_provider_emits_actual_event_once_after_closed_bar_crosses_settl
     before = BarEvent(
         timestamp=settlement - timedelta(minutes=5),
         symbol="ETH/USDT:USDT",
-        open=Decimal("2000"),
-        high=Decimal("2010"),
-        low=Decimal("1990"),
-        close=Decimal("2000"),
-        volume=Decimal("10"),
+        open=Decimal(2000),
+        high=Decimal(2010),
+        low=Decimal(1990),
+        close=Decimal(2000),
+        volume=Decimal(10),
     )
     assert provider.collect(before).events == ()
     after = BarEvent(
@@ -197,11 +197,11 @@ def test_funding_provider_does_not_charge_arbitrary_prestartup_history() -> None
     much_later = BarEvent(
         timestamp=settlement + timedelta(hours=7),
         symbol="ETH/USDT:USDT",
-        open=Decimal("2000"),
-        high=Decimal("2010"),
-        low=Decimal("1990"),
-        close=Decimal("2000"),
-        volume=Decimal("10"),
+        open=Decimal(2000),
+        high=Decimal(2010),
+        low=Decimal(1990),
+        close=Decimal(2000),
+        volume=Decimal(10),
     )
     assert provider.collect(much_later).events == ()
 
@@ -233,18 +233,18 @@ def test_paper_funding_changes_wallet_once_and_tracks_durable_cursor() -> None:
         timestamp=timestamp,
         bid=Decimal("99.9"),
         ask=Decimal("100.1"),
-        mark=Decimal("100"),
+        mark=Decimal(100),
         tick_size=Decimal("0.1"),
         qty_step=Decimal("0.001"),
     )
     bar = BarEvent(
         timestamp=timestamp,
         symbol=market.symbol,
-        open=Decimal("100"),
-        high=Decimal("101"),
-        low=Decimal("99"),
-        close=Decimal("100"),
-        volume=Decimal("1000"),
+        open=Decimal(100),
+        high=Decimal(101),
+        low=Decimal(99),
+        close=Decimal(100),
+        volume=Decimal(1000),
     )
     submitted = app.run_market_cycle(market, bar=bar)
     assert submitted.executions
@@ -276,7 +276,7 @@ def test_paper_funding_changes_wallet_once_and_tracks_durable_cursor() -> None:
         timestamp=timestamp + timedelta(hours=8),
         symbol=market.symbol,
         rate=Decimal("0.01"),
-        mark_price=Decimal("100"),
+        mark_price=Decimal(100),
     )
     first = app._apply_funding_events((funding,))
     second = app._apply_funding_events((funding,))
@@ -336,11 +336,11 @@ def test_funding_provider_uses_underlying_ccxt_history_when_wrapper_has_no_histo
     bar = BarEvent(
         timestamp=settlement,
         symbol="ETH/USDT:USDT",
-        open=Decimal("2000"),
-        high=Decimal("2010"),
-        low=Decimal("1990"),
-        close=Decimal("2000"),
-        volume=Decimal("10"),
+        open=Decimal(2000),
+        high=Decimal(2010),
+        low=Decimal(1990),
+        close=Decimal(2000),
+        volume=Decimal(10),
     )
     assert len(provider.collect(bar).events) == 1
 
@@ -378,18 +378,18 @@ def test_existing_durable_account_event_is_not_applied_twice_after_restart() -> 
         timestamp=timestamp,
         bid=Decimal("99.9"),
         ask=Decimal("100.1"),
-        mark=Decimal("100"),
+        mark=Decimal(100),
         tick_size=Decimal("0.1"),
         qty_step=Decimal("0.001"),
     )
     bar = BarEvent(
         timestamp=timestamp,
         symbol=market.symbol,
-        open=Decimal("100"),
-        high=Decimal("101"),
-        low=Decimal("99"),
-        close=Decimal("100"),
-        volume=Decimal("1000"),
+        open=Decimal(100),
+        high=Decimal(101),
+        low=Decimal(99),
+        close=Decimal(100),
+        volume=Decimal(1000),
     )
     submitted = app.run_market_cycle(market, bar=bar)
     assert submitted.executions
@@ -418,7 +418,7 @@ def test_existing_durable_account_event_is_not_applied_twice_after_restart() -> 
         timestamp=timestamp + timedelta(hours=8),
         symbol=market.symbol,
         rate=Decimal("0.01"),
-        mark_price=Decimal("100"),
+        mark_price=Decimal(100),
     )
     assert app._apply_funding_events((funding,)) == ()
     assert app.wallet(market).balance == before
@@ -479,7 +479,7 @@ def test_sql_paper_account_event_sink_is_idempotent_and_enqueues_outbox(tmp_path
     assert outbox.event_type == "hedge.account.fee"
     recovered = sink.recover()
     assert recovered.event_ids == frozenset({event.event_id})
-    assert recovered.funding_balance_delta == Decimal("0")
+    assert recovered.funding_balance_delta == Decimal(0)
     assert recovered.last_funding_event_time is None
 
 
@@ -518,7 +518,7 @@ def test_sql_paper_account_event_recovery_closes_checkpoint_crash_window(tmp_pat
             timestamp=settlement,
             symbol="ETH/USDT:USDT",
             rate=Decimal("0.0001"),
-            mark_price=Decimal("2000"),
+            mark_price=Decimal(2000),
         ),
         amount=Decimal("-1.25"),
     )
@@ -594,8 +594,8 @@ def test_market_rule_fallback_preserves_configured_rules_and_fees() -> None:
     assert rules.fee_source == "CONFIG_FALLBACK"
     assert rules.tick_size == Decimal("0.5")
     assert rules.qty_step == Decimal("0.25")
-    assert rules.min_qty == Decimal("1")
-    assert rules.min_notional == Decimal("20")
+    assert rules.min_qty == Decimal(1)
+    assert rules.min_notional == Decimal(20)
     assert rules.maker_fee_rate == Decimal("0.001")
     assert rules.taker_fee_rate == Decimal("0.002")
 
@@ -627,11 +627,11 @@ def test_funding_poll_throttle_still_emits_due_pending_settlement() -> None:
     before = BarEvent(
         timestamp=settlement - timedelta(minutes=5),
         symbol="ETH/USDT:USDT",
-        open=Decimal("2000"),
-        high=Decimal("2001"),
-        low=Decimal("1999"),
-        close=Decimal("2000"),
-        volume=Decimal("1"),
+        open=Decimal(2000),
+        high=Decimal(2001),
+        low=Decimal(1999),
+        close=Decimal(2000),
+        volume=Decimal(1),
     )
     assert provider.collect(before).events == ()
     due = BarEvent(
@@ -677,22 +677,22 @@ def test_paper_cycle_refreshes_matcher_precision_and_exchange_fee_rates() -> Non
     market = MarketSnapshot(
         symbol="ETH/USDT:USDT",
         timestamp=timestamp,
-        bid=Decimal("2000"),
-        ask=Decimal("2001"),
+        bid=Decimal(2000),
+        ask=Decimal(2001),
         mark=Decimal("2000.5"),
         tick_size=Decimal("0.01"),
         qty_step=Decimal("0.001"),
         min_qty=Decimal("0.002"),
-        min_notional=Decimal("10"),
+        min_notional=Decimal(10),
     )
     bar = BarEvent(
         timestamp=timestamp,
         symbol=market.symbol,
         open=market.mark,
-        high=Decimal("2010"),
-        low=Decimal("1990"),
+        high=Decimal(2010),
+        low=Decimal(1990),
         close=market.mark,
-        volume=Decimal("100"),
+        volume=Decimal(100),
     )
     app.run_market_cycle(
         market,
@@ -703,7 +703,7 @@ def test_paper_cycle_refreshes_matcher_precision_and_exchange_fee_rates() -> Non
     assert app.matcher.config.price_tick == Decimal("0.01")
     assert app.matcher.config.qty_step == Decimal("0.001")
     assert app.matcher.config.min_fill_qty == Decimal("0.002")
-    assert app.matcher.config.min_fill_notional == Decimal("10")
+    assert app.matcher.config.min_fill_notional == Decimal(10)
     assert app.matcher.config.maker_fee_rate == Decimal("0.00015")
     assert app.matcher.config.taker_fee_rate == Decimal("0.00035")
 
@@ -735,11 +735,11 @@ def test_funding_history_wins_over_revised_current_rate_for_same_settlement() ->
     bar = BarEvent(
         timestamp=settlement,
         symbol="ETH/USDT:USDT",
-        open=Decimal("2000"),
-        high=Decimal("2010"),
-        low=Decimal("1990"),
-        close=Decimal("2000"),
-        volume=Decimal("10"),
+        open=Decimal(2000),
+        high=Decimal(2010),
+        low=Decimal(1990),
+        close=Decimal(2000),
+        volume=Decimal(10),
     )
 
     collected = provider.collect(bar)

@@ -37,7 +37,7 @@ class ProductionGateEvidence:
     ip_restricted: bool = False
     expected_arm_token_sha256: str | None = None
     max_abs_clock_offset_ms: int = 1000
-    max_order_notional: Decimal = Decimal("100")
+    max_order_notional: Decimal = Decimal(100)
     allow_market_orders: bool = True
     account_id_prefix: str = "binance-usdm"
 

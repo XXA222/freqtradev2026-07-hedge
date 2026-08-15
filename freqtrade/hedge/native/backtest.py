@@ -64,7 +64,7 @@ def _period_returns(equity: Sequence[Decimal]) -> list[float]:
     returns: list[float] = []
     for previous, current in zip(equity, equity[1:]):
         if previous > ZERO:
-            returns.append(float(current / previous - Decimal("1")))
+            returns.append(float(current / previous - Decimal(1)))
     return returns
 
 
@@ -261,27 +261,59 @@ class HedgeBacktestResultAdapter:
         events_raw = tuple(getattr(simulation, "events", ()))
         snapshots = tuple(self._snapshot_row(item) for item in snapshots_raw)
         events = tuple(self._event_row(item) for item in events_raw)
+        report = getattr(simulation, "report", {})
+        report_start = _number(
+            _get(report, "starting_balance", _get(report, "initial_balance", ZERO))
+        )
+        report_final = _number(_get(report, "final_equity", report_start))
         equity = [_number(_get(item, "equity")) for item in snapshots_raw]
         if not equity:
-            report = getattr(simulation, "report", {})
-            start = _number(_get(report, "starting_balance", _get(report, "initial_balance", ZERO)))
-            final = _number(_get(report, "final_equity", start))
-            equity = [start, final]
-        start = equity[0]
-        final = equity[-1]
+            equity = [report_start, report_final]
+        else:
+            if report_start > ZERO and equity[0] != report_start:
+                equity.insert(0, report_start)
+            if equity[-1] != report_final:
+                equity.append(report_final)
+        start = report_start if report_start > ZERO else equity[0]
+        final = report_final if report_final > ZERO else equity[-1]
         profit = final - start
-        total_return = ZERO if start <= ZERO else profit / start
+        report_return = _get(report, "total_return_ratio")
+        total_return = (
+            _number(report_return)
+            if report_return is not None
+            else (ZERO if start <= ZERO else profit / start)
+        )
         drawdown, drawdown_peak, drawdown_end = _max_drawdown(equity)
+        report_drawdown = _number(_get(report, "max_drawdown", ZERO))
+        if report_drawdown > drawdown:
+            drawdown = report_drawdown
         realized_values = [_event_pnl(item) for item in events_raw if _event_pnl(item) != ZERO]
-        gross_profit = sum((item for item in realized_values if item > ZERO), ZERO)
-        gross_loss = -sum((item for item in realized_values if item < ZERO), ZERO)
+        gross_profit = _number(
+            _get(report, "gross_realized_profit", sum((item for item in realized_values if item > ZERO), ZERO))
+        )
+        gross_loss = _number(
+            _get(report, "gross_realized_loss", -sum((item for item in realized_values if item < ZERO), ZERO))
+        )
         profit_factor = None if gross_loss == ZERO else gross_profit / gross_loss
         fills = [item for item in events_raw if "FILL" in _event_type(item) or _get(item, "trade_id") is not None]
-        max_gross = max((_number(_get(item, "gross_notional")) for item in snapshots_raw), default=ZERO)
+        fill_count = int(_get(report, "fill_count", len(fills)))
+        winning_realizations = int(
+            _get(report, "winning_realizations", sum(1 for item in realized_values if item > ZERO))
+        )
+        losing_realizations = int(
+            _get(report, "losing_realizations", sum(1 for item in realized_values if item < ZERO))
+        )
+        max_gross = max(
+            max(
+                (_number(_get(item, "gross_notional")) for item in snapshots_raw),
+                default=ZERO,
+            ),
+            _number(_get(report, "gross_peak", ZERO)),
+        )
         max_margin = max((_number(_get(item, "margin_utilization")) for item in snapshots_raw), default=ZERO)
         last = snapshots_raw[-1] if snapshots_raw else {}
-        fees = _number(_get(last, "fees", _get(getattr(simulation, "report", {}), "fees", ZERO)))
-        funding = _number(_get(last, "funding", _get(getattr(simulation, "report", {}), "funding", ZERO)))
+        fees = _number(_get(report, "fees", _get(last, "fees", ZERO)))
+        funding = _number(_get(report, "funding", _get(last, "funding", ZERO)))
         realized = _number(_get(last, "realized_pnl", sum(realized_values, ZERO)))
         risk = _risk_metrics(equity, self.periods_per_year)
         metrics = HedgeBacktestMetrics(
@@ -295,12 +327,16 @@ class HedgeBacktestResultAdapter:
             fees=fees,
             funding=funding,
             realized_pnl=realized,
-            event_count=len(events_raw),
-            fill_count=len(fills),
-            winning_realizations=sum(1 for item in realized_values if item > ZERO),
-            losing_realizations=sum(1 for item in realized_values if item < ZERO),
+            event_count=int(_get(report, "material_event_count", len(events_raw))),
+            fill_count=fill_count,
+            winning_realizations=winning_realizations,
+            losing_realizations=losing_realizations,
             profit_factor=profit_factor,
-            expectancy=(ZERO if not realized_values else sum(realized_values, ZERO) / len(realized_values)),
+            expectancy=(
+                ZERO
+                if (winning_realizations + losing_realizations) == 0
+                else (gross_profit - gross_loss) / (winning_realizations + losing_realizations)
+            ),
             sharpe=risk["sharpe"],
             sortino=risk["sortino"],
             volatility=risk["volatility"],

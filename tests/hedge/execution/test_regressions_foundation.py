@@ -43,7 +43,7 @@ def make_intent(
         quantity=Decimal(quantity),
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("3000"),
+        limit_price=Decimal(3000),
     )
 
 
@@ -96,7 +96,7 @@ def test_duplicate_ack_is_idempotent_and_stale_snapshot_cannot_cancel_partial() 
             client_order_id=duplicate.client_order_id,
             status=OrderState.PARTIAL,
             filled_quantity=Decimal("0.4"),
-            average_price=Decimal("3001"),
+            average_price=Decimal(3001),
             observed_at=duplicate.lifecycle.updated_at + timedelta(seconds=2),
         ),
     )
@@ -123,14 +123,14 @@ def unknown_order() -> ExecutionOrder:
     now = datetime.now(UTC)
     lifecycle = OrderLifecycle(updated_at=now)
     lifecycle = lifecycle.transition(
-        OrderState.SUBMITTING, ordered_quantity=Decimal("1"), occurred_at=now
+        OrderState.SUBMITTING, ordered_quantity=Decimal(1), occurred_at=now
     )
     lifecycle = lifecycle.transition(
         OrderState.UNKNOWN,
-        ordered_quantity=Decimal("1"),
+        ordered_quantity=Decimal(1),
         occurred_at=now + timedelta(milliseconds=1),
     )
-    return ExecutionOrder(intent, "FTH-ETHUSDT-L0-ABCDEFGHIJKLMNOP", Decimal("1"), lifecycle, now)
+    return ExecutionOrder(intent, "FTH-ETHUSDT-L0-ABCDEFGHIJKLMNOP", Decimal(1), lifecycle, now)
 
 
 def test_unknown_resolver_continues_after_source_error_and_deduplicates_trade_ids() -> None:
@@ -140,7 +140,7 @@ def test_unknown_resolver_continues_after_source_error_and_deduplicates_trade_id
         client_order_id=order.client_order_id,
         status=OrderState.PARTIAL,
         filled_quantity=Decimal("0.4"),
-        average_price=Decimal("3000"),
+        average_price=Decimal(3000),
         exchange_order_id="order-1",
         exchange_trade_id="trade-1",
     )
@@ -148,7 +148,7 @@ def test_unknown_resolver_continues_after_source_error_and_deduplicates_trade_id
         client_order_id=order.client_order_id,
         status=OrderState.PARTIAL,
         filled_quantity=Decimal("0.4"),
-        average_price=Decimal("3000"),
+        average_price=Decimal(3000),
         exchange_order_id="order-1",
         exchange_trade_id="trade-1",
     )
@@ -156,7 +156,7 @@ def test_unknown_resolver_continues_after_source_error_and_deduplicates_trade_id
         client_order_id=order.client_order_id,
         status=OrderState.PARTIAL,
         filled_quantity=Decimal("0.6"),
-        average_price=Decimal("3010"),
+        average_price=Decimal(3010),
         exchange_order_id="order-1",
         exchange_trade_id="trade-2",
     )
@@ -169,8 +169,8 @@ def test_unknown_resolver_continues_after_source_error_and_deduplicates_trade_id
 
     assert resolved is not None
     assert resolved.status is OrderState.FILLED
-    assert resolved.filled_quantity == Decimal("1")
-    assert resolved.average_price == Decimal("3006")
+    assert resolved.filled_quantity == Decimal(1)
+    assert resolved.average_price == Decimal(3006)
     assert resolver.last_result.source is ResolutionSource.RECENT_FILLS
     assert resolver.last_result.errors == ("DIRECT_QUERY:ConnectionError",)
 
@@ -272,7 +272,7 @@ def test_idempotent_replay_reads_latest_order_state_from_store() -> None:
             client_order_id=first.order.client_order_id,
             status=OrderState.PARTIAL,
             filled_quantity=Decimal("0.25"),
-            average_price=Decimal("3000"),
+            average_price=Decimal(3000),
             observed_at=first.order.lifecycle.updated_at + timedelta(seconds=1),
         ),
     )

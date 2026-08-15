@@ -63,8 +63,8 @@ PLANNER_FIELDS = frozenset(
 PAPER_FIELDS = frozenset(
     {
         "leverage",
-        "default_long_signal",
-        "default_short_signal",
+        "long_signal",
+        "short_signal",
         "volume_participation",
         "market_slippage_bps",
         "max_entry_layers_per_bar",

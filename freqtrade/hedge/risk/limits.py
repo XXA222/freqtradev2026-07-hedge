@@ -27,7 +27,7 @@ class RiskLimits:
     max_short_exposure_ratio: Decimal | None = None
     max_pending_order_notional: Decimal | None = None
     max_pending_order_initial_margin: Decimal | None = None
-    min_available_balance: Decimal = Decimal("0")
+    min_available_balance: Decimal = Decimal(0)
 
     def __post_init__(self) -> None:
         object.__setattr__(

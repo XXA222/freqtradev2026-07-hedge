@@ -36,7 +36,7 @@ class PortfolioRiskApprovalAdapter:
             raw = intent.metadata.get("reference_price")
             reference = None if raw is None else Decimal(str(raw))
         if reference is None or reference <= 0:
-            return RiskApproval(False, Decimal("0"), ("REFERENCE_PRICE_REQUIRED",))
+            return RiskApproval(False, Decimal(0), ("REFERENCE_PRICE_REQUIRED",))
         portfolio = self._portfolio_provider()
         decision = self._engine.evaluate_portfolio_order(
             portfolio=portfolio,
@@ -104,10 +104,10 @@ class RuntimeRiskApprovalAdapter:
     def approve(self, intent: OrderIntent) -> RiskApproval:
         reference = self._reference_price(intent)
         if reference is None or not reference.is_finite() or reference <= 0:
-            return RiskApproval(False, Decimal("0"), ("REFERENCE_PRICE_REQUIRED",))
+            return RiskApproval(False, Decimal(0), ("REFERENCE_PRICE_REQUIRED",))
         expires_at_ms = self._expires_at_ms(intent)
         if expires_at_ms == -1:
-            return RiskApproval(False, Decimal("0"), ("INTENT_EXPIRY_INVALID",))
+            return RiskApproval(False, Decimal(0), ("INTENT_EXPIRY_INVALID",))
         portfolio = self._portfolio_provider()
         decision = self._runtime.approve_order(
             portfolio=portfolio,
@@ -126,10 +126,10 @@ class RuntimeRiskApprovalAdapter:
             ),
         )
         if not decision.allowed:
-            return RiskApproval(False, Decimal("0"), decision.reason_codes)
+            return RiskApproval(False, Decimal(0), decision.reason_codes)
         reservation = decision.reservation
         if reservation is None:
-            return RiskApproval(False, Decimal("0"), ("RISK_RESERVATION_MISSING",))
+            return RiskApproval(False, Decimal(0), ("RISK_RESERVATION_MISSING",))
         try:
             reservation.confirm(
                 commit_port=self._commit_store,
@@ -137,5 +137,5 @@ class RuntimeRiskApprovalAdapter:
             )
         except Exception:
             reservation.release()
-            return RiskApproval(False, Decimal("0"), ("RISK_DURABLE_HANDOFF_FAILED",))
+            return RiskApproval(False, Decimal(0), ("RISK_DURABLE_HANDOFF_FAILED",))
         return RiskApproval(True, decision.approved_quantity, decision.reason_codes)

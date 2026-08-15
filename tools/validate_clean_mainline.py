@@ -36,6 +36,7 @@ SOURCE_TOP_LEVEL_DIRS = {
     "user_data",
 }
 WORKSPACE_IGNORED_DIRS = {
+    ".claude",
     ".git",
     ".mypy_cache",
     ".pytest_cache",

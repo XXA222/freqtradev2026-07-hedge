@@ -32,8 +32,8 @@ def _inputs(**overrides) -> ReadinessInputs:
         single_writer_lease_valid=True,
         position_mode="hedge",
         margin_mode="cross",
-        configured_leverage=Decimal("3"),
-        observed_leverages=(Decimal("3"),),
+        configured_leverage=Decimal(3),
+        observed_leverages=(Decimal(3),),
         unmanaged_position_count=0,
         unmanaged_order_count=0,
         rest_snapshot_valid=True,
@@ -49,14 +49,14 @@ def _inputs(**overrides) -> ReadinessInputs:
 def _account(**overrides) -> AccountRiskSnapshot:
     values = dict(
         account_id="main",
-        equity=Decimal("10000"),
-        wallet_balance=Decimal("10000"),
-        available_balance=Decimal("8000"),
-        initial_margin=Decimal("1000"),
-        maintenance_margin=Decimal("100"),
-        gross_long_notional=Decimal("3000"),
-        gross_short_notional=Decimal("1000"),
-        net_notional=Decimal("2000"),
+        equity=Decimal(10000),
+        wallet_balance=Decimal(10000),
+        available_balance=Decimal(8000),
+        initial_margin=Decimal(1000),
+        maintenance_margin=Decimal(100),
+        gross_long_notional=Decimal(3000),
+        gross_short_notional=Decimal(1000),
+        net_notional=Decimal(2000),
         liquidation_buffer_ratio=Decimal("0.5"),
         snapshot_id="risk-1",
     )
@@ -68,7 +68,7 @@ def _limits(**overrides) -> RiskLimits:
     values = dict(
         max_margin_utilization=Decimal("0.8"),
         min_liquidation_buffer_ratio=Decimal("0.2"),
-        max_gross_notional=Decimal("50000"),
+        max_gross_notional=Decimal(50000),
     )
     values.update(overrides)
     return RiskLimits(**values)
@@ -95,8 +95,8 @@ def _coordinator(*, now: list[int] | None = None):
 def test_low_level_reduce_fails_closed_without_confirmed_quantity() -> None:
     decision = HedgeRiskEngine(_limits()).evaluate(
         action=PositionAction.REDUCE,
-        requested_quantity=Decimal("10"),
-        reference_price=Decimal("2000"),
+        requested_quantity=Decimal(10),
+        reference_price=Decimal(2000),
         account=_account(),
         position_side=PositionSide.LONG,
     )
@@ -122,17 +122,17 @@ def test_unknown_order_quarantines_only_its_position_key() -> None:
 def test_missing_liquidation_or_maintenance_data_fails_closed() -> None:
     portfolio = build_risk_portfolio(
         account_id="main",
-        equity=Decimal("10000"),
-        wallet_balance=Decimal("10000"),
-        available_balance=Decimal("9000"),
+        equity=Decimal(10000),
+        wallet_balance=Decimal(10000),
+        available_balance=Decimal(9000),
         positions=(
             PositionRiskLeg(
                 account_id="main",
                 symbol="ETH/USDT:USDT",
                 position_side=PositionSide.LONG,
-                quantity=Decimal("1"),
-                mark_price=Decimal("2000"),
-                maintenance_margin=Decimal("0"),
+                quantity=Decimal(1),
+                mark_price=Decimal(2000),
+                maintenance_margin=Decimal(0),
                 liquidation_price=None,
             ),
         ),
@@ -148,33 +148,33 @@ def test_missing_liquidation_or_maintenance_data_fails_closed() -> None:
         position_side=PositionSide.LONG,
         action=PositionAction.INCREASE,
         requested_quantity=Decimal("0.1"),
-        reference_price=Decimal("2000"),
+        reference_price=Decimal(2000),
     )
     assert not decision.allowed
 
 
 def test_post_fill_maintenance_buffer_clips_new_order() -> None:
     account = _account(
-        equity=Decimal("1000"),
-        wallet_balance=Decimal("1000"),
-        available_balance=Decimal("1000"),
-        initial_margin=Decimal("0"),
-        maintenance_margin=Decimal("700"),
-        gross_long_notional=Decimal("0"),
-        gross_short_notional=Decimal("0"),
-        net_notional=Decimal("0"),
+        equity=Decimal(1000),
+        wallet_balance=Decimal(1000),
+        available_balance=Decimal(1000),
+        initial_margin=Decimal(0),
+        maintenance_margin=Decimal(700),
+        gross_long_notional=Decimal(0),
+        gross_short_notional=Decimal(0),
+        net_notional=Decimal(0),
     )
     decision = HedgeRiskEngine(_limits()).evaluate(
         action=PositionAction.INCREASE,
-        requested_quantity=Decimal("2"),
-        reference_price=Decimal("1000"),
+        requested_quantity=Decimal(2),
+        reference_price=Decimal(1000),
         account=account,
         position_side=PositionSide.LONG,
-        leverage=Decimal("10"),
+        leverage=Decimal(10),
         maintenance_margin_rate=Decimal("0.1"),
     )
     assert decision.allowed
-    assert decision.approved_quantity == Decimal("1")
+    assert decision.approved_quantity == Decimal(1)
     assert "PROJECTED_LIQUIDATION_BUFFER_CLIPPED" in decision.reason_codes
 
 
@@ -186,7 +186,7 @@ def test_reservation_releases_only_after_verified_durable_commit() -> None:
         position_side=PositionSide.LONG,
         action=PositionAction.INCREASE,
         requested_quantity=Decimal("0.1"),
-        reference_price=Decimal("2000"),
+        reference_price=Decimal(2000),
         intent_id="intent-1",
         idempotency_key="idem-1",
         correlation_id="corr-1",
@@ -219,7 +219,7 @@ def test_durable_reference_requires_nonempty_string() -> None:
         position_side=PositionSide.LONG,
         action=PositionAction.INCREASE,
         requested_quantity=Decimal("0.1"),
-        reference_price=Decimal("2000"),
+        reference_price=Decimal(2000),
     )
     approval = coordinator.approve(request=request, account=_account())
     assert approval.allowed and approval.reservation is not None
@@ -239,7 +239,7 @@ def test_expired_intent_is_denied_before_reservation() -> None:
         position_side=PositionSide.LONG,
         action=PositionAction.INCREASE,
         requested_quantity=Decimal("0.1"),
-        reference_price=Decimal("2000"),
+        reference_price=Decimal(2000),
         expires_at_ms=999,
     )
     approval = coordinator.approve(request=request, account=_account())
@@ -251,19 +251,19 @@ def test_authoritative_facts_port_payload_preserves_versions() -> None:
     facts = AccountRiskFacts(
         exchange="binance",
         account_id="main",
-        equity=Decimal("10000"),
-        wallet_balance=Decimal("10000"),
-        available_balance=Decimal("9000"),
+        equity=Decimal(10000),
+        wallet_balance=Decimal(10000),
+        available_balance=Decimal(9000),
         positions=(
             PositionRiskLeg(
                 account_id="main",
                 symbol="ETH/USDT:USDT",
                 position_side=PositionSide.LONG,
-                quantity=Decimal("1"),
-                mark_price=Decimal("2000"),
-                leverage=Decimal("3"),
-                maintenance_margin=Decimal("20"),
-                liquidation_price=Decimal("1200"),
+                quantity=Decimal(1),
+                mark_price=Decimal(2000),
+                leverage=Decimal(3),
+                maintenance_margin=Decimal(20),
+                liquidation_price=Decimal(1200),
             ),
         ),
         pending_orders=(
@@ -273,12 +273,12 @@ def test_authoritative_facts_port_payload_preserves_versions() -> None:
                 position_side=PositionSide.LONG,
                 action=PositionAction.INCREASE,
                 remaining_quantity=Decimal("0.1"),
-                reference_price=Decimal("1900"),
-                leverage=Decimal("3"),
+                reference_price=Decimal(1900),
+                leverage=Decimal(3),
             ),
         ),
-        initial_margin=Decimal("700"),
-        maintenance_margin=Decimal("20"),
+        initial_margin=Decimal(700),
+        maintenance_margin=Decimal(20),
         snapshot_id="snapshot-42",
         source_version=42,
         exchange_time_ms=900,
@@ -324,7 +324,7 @@ def test_coordinator_enforces_same_leg_unknown_quarantine() -> None:
             position_side=PositionSide.LONG,
             action=PositionAction.INCREASE,
             requested_quantity=Decimal("0.1"),
-            reference_price=Decimal("2000"),
+            reference_price=Decimal(2000),
         ),
         account=_account(),
     )
@@ -339,7 +339,7 @@ def test_coordinator_enforces_same_leg_unknown_quarantine() -> None:
             position_side=PositionSide.SHORT,
             action=PositionAction.INCREASE,
             requested_quantity=Decimal("0.1"),
-            reference_price=Decimal("2000"),
+            reference_price=Decimal(2000),
         ),
         account=_account(),
     )
@@ -355,8 +355,8 @@ def test_coordinator_enforces_same_leg_unknown_quarantine() -> None:
             position_side=PositionSide.LONG,
             action=PositionAction.REDUCE,
             requested_quantity=Decimal("0.5"),
-            reference_price=Decimal("2000"),
-            confirmed_quantity=Decimal("1"),
+            reference_price=Decimal(2000),
+            confirmed_quantity=Decimal(1),
         ),
         account=_account(),
     )
@@ -385,7 +385,7 @@ def test_batch_durable_handoff_retains_capacity_on_verification_failure() -> Non
                 position_side=side,
                 action=PositionAction.INCREASE,
                 requested_quantity=Decimal("0.1"),
-                reference_price=Decimal("2000"),
+                reference_price=Decimal(2000),
                 intent_id=f"intent-{side.value.lower()}",
                 idempotency_key=f"idem-{side.value.lower()}",
                 correlation_id="corr-batch",
@@ -396,7 +396,7 @@ def test_batch_durable_handoff_retains_capacity_on_verification_failure() -> Non
     )
     batch = coordinator.approve_batch(items)
     assert batch.allowed
-    assert coordinator.pending_increase_notional(account_id="main") == Decimal("400")
+    assert coordinator.pending_increase_notional(account_id="main") == Decimal(400)
 
     commit_store = _TransientReadFailureCommitStore()
     with pytest.raises(RuntimeError, match="verification failed"):
@@ -406,7 +406,7 @@ def test_batch_durable_handoff_retains_capacity_on_verification_failure() -> Non
         )
     # The durable transaction may already exist.  Keeping local reservations is
     # conservative until the read path can prove the handoff.
-    assert coordinator.pending_increase_notional(account_id="main") == Decimal("400")
+    assert coordinator.pending_increase_notional(account_id="main") == Decimal(400)
 
     commit_store.fail_reads = False
     records = batch.confirm(
@@ -414,7 +414,7 @@ def test_batch_durable_handoff_retains_capacity_on_verification_failure() -> Non
         durable_references=("order_intents:long", "order_intents:short"),
     )
     assert len(records) == 2
-    assert coordinator.pending_increase_notional(account_id="main") == Decimal("0")
+    assert coordinator.pending_increase_notional(account_id="main") == Decimal(0)
 
 
 def test_reduce_commit_uses_actual_account_risk_snapshot() -> None:
@@ -425,8 +425,8 @@ def test_reduce_commit_uses_actual_account_risk_snapshot() -> None:
         position_side=PositionSide.LONG,
         action=PositionAction.REDUCE,
         requested_quantity=Decimal("0.5"),
-        reference_price=Decimal("2000"),
-        confirmed_quantity=Decimal("1"),
+        reference_price=Decimal(2000),
+        confirmed_quantity=Decimal(1),
         intent_id="reduce-intent",
         idempotency_key="reduce-idem",
         correlation_id="reduce-corr",
@@ -452,7 +452,7 @@ def test_accepted_durable_handoff_can_be_verified_after_lease_expiry() -> None:
             position_side=PositionSide.LONG,
             action=PositionAction.INCREASE,
             requested_quantity=Decimal("0.1"),
-            reference_price=Decimal("2000"),
+            reference_price=Decimal(2000),
             intent_id="late-verify-intent",
             idempotency_key="late-verify-idem",
             correlation_id="late-verify-corr",
@@ -498,7 +498,7 @@ def test_sql_risk_approval_commit_store_is_idempotent_and_fail_closed(tmp_path) 
         rules_version="v1",
         fencing_token=1,
         approved_quantity=Decimal("0.1"),
-        approved_notional=Decimal("200"),
+        approved_notional=Decimal(200),
         evaluated_at_ms=1000,
         committed_at_ms=1001,
         durable_reference="order_intents:1",
@@ -519,7 +519,7 @@ def test_sql_risk_approval_commit_store_is_idempotent_and_fail_closed(tmp_path) 
         rules_version="v1",
         fencing_token=1,
         approved_quantity=Decimal("0.2"),
-        approved_notional=Decimal("400"),
+        approved_notional=Decimal(400),
         evaluated_at_ms=1000,
         committed_at_ms=1001,
         durable_reference="order_intents:1",

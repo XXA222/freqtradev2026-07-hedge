@@ -17,6 +17,10 @@ from .market_data import (
     build_ticker_compat_market_input,
 )
 from .paper_events import ExchangeFundingEventProvider
+from freqtrade.hedge.native.coordinator import NativeConvergenceCoordinator
+from freqtrade.hedge.native.freqai import HedgeModelReadinessGate
+from freqtrade.hedge.native.producer import HedgeProducerConsumerGate
+from freqtrade.hedge.simulation.exchange import FundingEvent
 from .paper_runtime import IntegratedPaperHedgeApplication, PaperCycleResult
 from .production_controller import ProductionControllerCycle, ProductionHedgeController
 from .signal_provider import FreqtradeStrategySignalProvider, SignalSnapshot
@@ -69,9 +73,9 @@ class HedgeController:
         self.strategy = strategy
         self.paper_application = paper_application
         self.signal_provider = FreqtradeStrategySignalProvider(dataprovider, strategy)
-        self.native_convergence = None
-        self.model_gate = None
-        self.producer_gate = None
+        self.native_convergence: NativeConvergenceCoordinator | None = None
+        self.model_gate: HedgeModelReadinessGate | None = None
+        self.producer_gate: HedgeProducerConsumerGate | None = None
         self.production_controller: ProductionHedgeController | None = None
         self.last_production_cycle: ProductionControllerCycle | None = None
         assembly = composition.production_main_loop_assembly
@@ -122,7 +126,9 @@ class HedgeController:
             self.production_controller.stop()
         self.composition.stop()
 
-    def bind_native_convergence(self, coordinator: object) -> None:
+    def bind_native_convergence(
+        self, coordinator: NativeConvergenceCoordinator
+    ) -> None:
         """Bind official Freqtrade state/protection/capital adapters to all loops."""
 
         if not all(hasattr(coordinator, name) for name in ("new_risk_enabled", "admit", "status")):
@@ -144,12 +150,12 @@ class HedgeController:
             if callable(transformer):
                 assembly.loop.bind_order_transformer(transformer)
 
-    def bind_model_gate(self, gate: object) -> None:
+    def bind_model_gate(self, gate: HedgeModelReadinessGate) -> None:
         if not callable(getattr(gate, "observe", None)):
             raise TypeError("model gate must provide observe(signal)")
         self.model_gate = gate
 
-    def bind_producer_gate(self, gate: object) -> None:
+    def bind_producer_gate(self, gate: HedgeProducerConsumerGate) -> None:
         if not callable(getattr(gate, "observe", None)):
             raise TypeError("producer gate must provide observe(signal)")
         self.producer_gate = gate
@@ -338,7 +344,7 @@ class HedgeController:
                         event_time=signal.candle_close_time,
                     )
 
-                funding_events = ()
+                funding_events: tuple[FundingEvent, ...] = ()
                 funding_state = None
                 if self._funding_provider is not None:
                     snapshot_state = getattr(self._funding_provider, "snapshot_state", None)

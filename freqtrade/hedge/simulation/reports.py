@@ -7,12 +7,15 @@ from .cross_wallet import CrossWallet, MutableLeg
 
 
 def _lot_net(leg: MutableLeg) -> Decimal:
-    if not leg.tactical_lots:
+    if (
+        not leg.tactical_lots
+        and leg.tactical_closed_lot_count == 0
+        and leg.tactical_archived_realized_pnl == ZERO
+        and leg.tactical_archived_funding == ZERO
+        and leg.tactical_archived_fees == ZERO
+    ):
         return leg.tactical_realized_pnl
-    return sum(
-        (lot.realized_pnl + lot.funding - lot.fees for lot in leg.tactical_lots.values()),
-        ZERO,
-    )
+    return leg.tactical_net_pnl()
 
 
 def _effective_core_cost(leg: MutableLeg) -> Decimal:
@@ -24,8 +27,8 @@ def _effective_core_cost(leg: MutableLeg) -> Decimal:
 
 def _target_progress(current: Decimal, target: Decimal) -> Decimal:
     if target <= ZERO:
-        return Decimal("1") if current <= ZERO else ZERO
-    return min(max(current / target, ZERO), Decimal("1"))
+        return Decimal(1) if current <= ZERO else ZERO
+    return min(max(current / target, ZERO), Decimal(1))
 
 
 def build_report(
@@ -64,10 +67,13 @@ def build_report(
         if lot.quantity > ZERO
     )
     closed_lots = sum(
-        1
+        leg.tactical_closed_lot_count
+        + sum(
+            1
+            for lot in leg.tactical_lots.values()
+            if lot.quantity == ZERO and lot.closed_quantity > ZERO
+        )
         for leg in (wallet.long, wallet.short)
-        for lot in leg.tactical_lots.values()
-        if lot.quantity == ZERO and lot.closed_quantity > ZERO
     )
     current_net_qty = wallet.long.quantity - wallet.short.quantity
     total_pnl = final_equity - wallet.initial_balance
@@ -105,6 +111,11 @@ def build_report(
         "taker_fees": wallet.fees_paid - wallet.maker_fees_paid,
         "maker_fill_count": wallet.maker_fill_count,
         "taker_fill_count": wallet.taker_fill_count,
+        "fill_count": wallet.fill_count,
+        "winning_realizations": wallet.winning_realizations,
+        "losing_realizations": wallet.losing_realizations,
+        "gross_realized_profit": wallet.gross_realized_profit,
+        "gross_realized_loss": wallet.gross_realized_loss,
         "long_fees": wallet.long_fees_paid,
         "short_fees": wallet.short_fees_paid,
         "long_funding": wallet.long_funding,

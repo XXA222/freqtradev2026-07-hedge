@@ -213,6 +213,12 @@ class IStrategy(ABC, HyperStrategyMixin):
         Must call bot_start()
         """
         self.load_freqAI_model()
+        hedge_runtime = kwargs.get("hedge_runtime")
+        if hedge_runtime is not None:
+            bind_runtime = getattr(self.freqai, "set_hedge_runtime", None)
+            if callable(bind_runtime):
+                bind_runtime(hedge_runtime)
+                logger.info("Bound HedgeRuntime to FreqAI risk-level context provider.")
 
         strategy_safe_wrapper(self.bot_start)()
 

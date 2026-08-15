@@ -69,7 +69,7 @@ class ActionGroupReport:
     def filled_quantity(self) -> Decimal:
         return sum(
             (result.order.lifecycle.filled_quantity for result in self.results),
-            Decimal("0"),
+            Decimal(0),
         )
 
     @property

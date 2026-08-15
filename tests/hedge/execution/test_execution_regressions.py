@@ -42,7 +42,7 @@ from freqtrade.hedge.telemetry.metrics import HedgeMetrics
 def make_intent(
     key: str,
     *,
-    quantity: object = Decimal("1"),
+    quantity: object = Decimal(1),
     action: IntentAction = IntentAction.OPEN,
     metadata: object = None,
     group=None,
@@ -55,7 +55,7 @@ def make_intent(
         quantity=quantity,
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("3000"),
+        limit_price=Decimal(3000),
         action_group_id=group,
         metadata={} if metadata is None else metadata,
     )
@@ -88,10 +88,10 @@ def test_market_intent_rejects_limit_price() -> None:
             symbol="ETHUSDT",
             position_side=PositionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key="market-limit",
             order_type=OrderType.MARKET,
-            limit_price=Decimal("3000"),
+            limit_price=Decimal(3000),
         )
 
 
@@ -106,10 +106,10 @@ def test_symbol_rejects_ambiguous_or_unsupported_forms(symbol: str) -> None:
             symbol=symbol,
             position_side=PositionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key="bad-symbol",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("3000"),
+            limit_price=Decimal(3000),
         )
 
 
@@ -140,14 +140,14 @@ def test_metadata_is_part_of_idempotency_semantics() -> None:
 
 def test_risk_reason_codes_reject_plain_string() -> None:
     with pytest.raises(TypeError, match="sequence"):
-        RiskApproval(True, Decimal("1"), "ABC")
+        RiskApproval(True, Decimal(1), "ABC")
 
 
 def test_approved_intent_validates_client_order_id() -> None:
     with pytest.raises(ValueError):
         ApprovedOrderIntent(
             intent=make_intent("approved"),
-            approved_quantity=Decimal("1"),
+            approved_quantity=Decimal(1),
             client_order_id="bad id",
             approved_at=datetime.now(UTC),
             risk_reason_codes=(),
@@ -163,8 +163,8 @@ def test_external_snapshot_rejects_internal_state() -> None:
     "kwargs",
     [
         {"status": OrderState.ACKNOWLEDGED, "filled_quantity": Decimal("0.1")},
-        {"status": OrderState.PARTIAL, "filled_quantity": Decimal("0")},
-        {"status": OrderState.FILLED, "filled_quantity": Decimal("0")},
+        {"status": OrderState.PARTIAL, "filled_quantity": Decimal(0)},
+        {"status": OrderState.FILLED, "filled_quantity": Decimal(0)},
         {"status": OrderState.REJECTED, "filled_quantity": Decimal("0.1")},
     ],
 )
@@ -175,7 +175,7 @@ def test_external_snapshot_enforces_status_fill_consistency(kwargs) -> None:
 
 def test_lifecycle_direct_construction_rejects_impossible_filled_state() -> None:
     with pytest.raises(InvalidOrderTransition):
-        OrderLifecycle(status=OrderState.FILLED, filled_quantity=Decimal("0"))
+        OrderLifecycle(status=OrderState.FILLED, filled_quantity=Decimal(0))
 
 
 def test_store_rejects_same_version_conflict() -> None:
@@ -245,15 +245,15 @@ def test_canceled_order_absorbs_late_fills_and_can_become_filled() -> None:
         client_order_id=order.client_order_id,
         status=OrderState.CANCELED,
         filled_quantity=Decimal("0.6"),
-        average_price=Decimal("3001"),
+        average_price=Decimal(3001),
     )
     updated = service.apply_snapshot(canceled, late_partial)
     assert updated.lifecycle.filled_quantity == Decimal("0.6")
     late_full = ExternalOrderSnapshot(
         client_order_id=order.client_order_id,
         status=OrderState.CANCELED,
-        filled_quantity=Decimal("1"),
-        average_price=Decimal("3002"),
+        filled_quantity=Decimal(1),
+        average_price=Decimal(3002),
     )
     filled = service.apply_snapshot(updated, late_full)
     assert filled.lifecycle.status is OrderState.FILLED
@@ -277,7 +277,7 @@ class FillDuringCancelExchange(FakeExchangeExecutionPort):
             client_order_id=client_order_id,
             status=OrderState.CANCELED,
             filled_quantity=Decimal("0.8"),
-            average_price=Decimal("3000"),
+            average_price=Decimal(3000),
             exchange_order_id=current.exchange_order_id,
         )
 
@@ -353,10 +353,10 @@ def test_service_uses_fixed_lock_stripes() -> None:
             symbol="ETHUSDT",
             position_side=PositionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key=f"key-{index}",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("3000"),
+            limit_price=Decimal(3000),
         )
         with service.leg_guard(intent):
             pass
@@ -383,7 +383,7 @@ def test_stale_higher_fill_fact_is_absorbed_without_time_regression() -> None:
         client_order_id=order.client_order_id,
         status=OrderState.PARTIAL,
         filled_quantity=Decimal("0.2"),
-        average_price=Decimal("3000"),
+        average_price=Decimal(3000),
         observed_at=order.lifecycle.updated_at - timedelta(seconds=1),
     )
     updated = service.apply_snapshot(order, stale)
@@ -484,7 +484,7 @@ def test_canceled_order_accepts_late_partial_status_with_more_fill() -> None:
             client_order_id=order.client_order_id,
             status=OrderState.PARTIAL,
             filled_quantity=Decimal("0.4"),
-            average_price=Decimal("3001"),
+            average_price=Decimal(3001),
         ),
     )
 
@@ -566,7 +566,7 @@ def test_restart_detects_existing_client_id_semantic_conflict() -> None:
         store,
         InMemoryIdempotencyStore(),
     )
-    first_service.submit(make_intent("restart-conflict", quantity=Decimal("1")))
+    first_service.submit(make_intent("restart-conflict", quantity=Decimal(1)))
 
     restarted = make_service_with_store(
         exchange,
@@ -575,7 +575,7 @@ def test_restart_detects_existing_client_id_semantic_conflict() -> None:
     )
     with pytest.raises(ExecutionBlockedError, match="different intent"):
         restarted.submit(
-            make_intent("restart-conflict", quantity=Decimal("2"))
+            make_intent("restart-conflict", quantity=Decimal(2))
         )
     assert len(exchange.submit_calls) == 1
 

@@ -41,10 +41,10 @@ def calculate_leg_liquidation_buffer(
     mark = require_positive(mark_price, field="mark_price")
     liquidation = require_positive(liquidation_price, field="liquidation_price")
     if side is PositionSide.LONG:
-        ratio = max((mark - liquidation) / mark, Decimal("0"))
+        ratio = max((mark - liquidation) / mark, Decimal(0))
     else:
-        ratio = max((liquidation - mark) / mark, Decimal("0"))
-    ratio = min(ratio, Decimal("1"))
+        ratio = max((liquidation - mark) / mark, Decimal(0))
+    ratio = min(ratio, Decimal(1))
     return LegLiquidationBuffer(
         side,
         mark,
@@ -60,7 +60,7 @@ def calculate_account_maintenance_buffer(
 ) -> Decimal:
     equity_value = require_positive(equity, field="equity")
     maintenance = require_nonnegative(maintenance_margin, field="maintenance_margin")
-    return min(max((equity_value - maintenance) / equity_value, Decimal("0")), Decimal("1"))
+    return min(max((equity_value - maintenance) / equity_value, Decimal(0)), Decimal(1))
 
 
 def calculate_projected_maintenance_buffer(
@@ -84,7 +84,7 @@ def calculate_projected_maintenance_buffer(
     if rate <= 0:
         raise ValueError("maintenance_margin_rate must be positive.")
     projected = current + pending + notional * rate
-    return min(max((equity_value - projected) / equity_value, Decimal("0")), Decimal("1"))
+    return min(max((equity_value - projected) / equity_value, Decimal(0)), Decimal(1))
 
 
 def minimum_liquidation_buffer(

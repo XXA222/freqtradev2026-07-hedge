@@ -8,8 +8,8 @@ from hashlib import sha256
 from json import dumps
 from typing import Protocol, runtime_checkable
 
-ZERO = Decimal("0")
-ONE = Decimal("1")
+ZERO = Decimal(0)
+ONE = Decimal(1)
 
 
 def D(value: Decimal | int | float | str) -> Decimal:
@@ -363,8 +363,27 @@ class StrategyLegState:
         if self.trailing_phase is not TrailingPhase.CONFIRMED and self.trailing_armed:
             raise ValueError("only confirmed trailing phase may be armed")
 
+    def _evolve_trusted(self, **changes: object) -> "StrategyLegState":
+        """Fast internal immutable evolution for already-validated state transitions.
+
+        This avoids ``dataclasses.replace`` and rerunning the full post-init
+        validator on every bar.  Planner/trailing code only supplies values derived
+        from validated timestamps, Decimals and enum states.
+        """
+        for name in changes:
+            if name not in StrategyLegState.__slots__:
+                raise TypeError(f"unknown StrategyLegState field: {name}")
+        clone = object.__new__(StrategyLegState)
+        for name in StrategyLegState.__slots__:
+            object.__setattr__(clone, name, changes.get(name, getattr(self, name)))
+        return clone
+
     def next_sequence(self) -> "StrategyLegState":
-        return replace(self, sequence=self.sequence + 1)
+        clone = object.__new__(StrategyLegState)
+        for name in StrategyLegState.__slots__:
+            object.__setattr__(clone, name, getattr(self, name))
+        object.__setattr__(clone, "sequence", self.sequence + 1)
+        return clone
 
 
 @dataclass(frozen=True, slots=True)
@@ -546,6 +565,7 @@ class PlanningContext:
     long_signal: Decimal = ZERO
     short_signal: Decimal = ZERO
     target_net_quantity: Decimal | None = None
+    collect_diagnostics: bool = True
 
     def __post_init__(self) -> None:
         if (
@@ -563,6 +583,29 @@ class PlanningContext:
 
     def signal(self, side: PositionSide) -> Decimal:
         return self.long_signal if side is PositionSide.LONG else self.short_signal
+
+    def with_state_trusted(
+        self,
+        side: PositionSide,
+        state: StrategyLegState,
+    ) -> "PlanningContext":
+        """Return an internal state-only clone without revalidating unchanged fields.
+
+        ``PlanningContext`` and ``StrategyLegState`` are immutable and already
+        validated at this boundary.  The planner invokes this operation for both
+        legs on every candle, so avoiding ``dataclasses.replace`` removes a large
+        amount of reflection, constructor validation and short-lived allocation.
+        This helper is intentionally narrow: callers may only replace a side state.
+        """
+        clone = object.__new__(PlanningContext)
+        for name in PlanningContext.__slots__:
+            object.__setattr__(clone, name, getattr(self, name))
+        object.__setattr__(
+            clone,
+            "long_state" if side is PositionSide.LONG else "short_state",
+            state,
+        )
+        return clone
 
 
 @dataclass(frozen=True, slots=True)

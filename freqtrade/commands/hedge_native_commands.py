@@ -197,40 +197,14 @@ def start_hedge_recursive_file_analysis(args: dict[str, Any]) -> int:
     return 0 if report.passed else 1
 
 
-class _DeterministicTrial:
-    """Small TrialLike implementation for reproducible native Hedge searches."""
-
-    def __init__(self, seed: int) -> None:
-        from random import Random
-        self._random = Random(seed)
-
-    def suggest_float(self, name: str, low: float, high: float, **kwargs: Any) -> float:
-        from math import exp, log
-        step = kwargs.get("step")
-        if kwargs.get("log"):
-            value = exp(self._random.uniform(log(low), log(high)))
-        else:
-            value = self._random.uniform(low, high)
-        if step:
-            value = low + round((value - low) / float(step)) * float(step)
-        return min(max(value, low), high)
-
-    def suggest_int(self, name: str, low: int, high: int, **kwargs: Any) -> int:
-        step = int(kwargs.get("step", 1))
-        count = (high - low) // step
-        return low + self._random.randint(0, count) * step
-
-    def suggest_categorical(self, name: str, choices: Any) -> Any:
-        values = tuple(choices)
-        return values[self._random.randrange(len(values))]
-
 
 def start_hedge_native_hyperopt(args: dict[str, Any]) -> int:
     """Run reproducible Hedge-native search epochs through the shared backtester."""
     from freqtrade.commands.optimize_commands import setup_optimize_configuration
     from freqtrade.enums import RunMode
     from freqtrade.hedge.native.hyperopt import HedgeHyperoptRunner
-    from freqtrade.optimize.hedge_backtesting import run_freqtrade_hedge_backtest
+    from freqtrade.hedge.native.parallel_hyperopt import evaluate_native_hyperopt
+    from freqtrade.optimize.hedge_backtesting import prepare_freqtrade_hedge_backtest
 
     epochs = int(args.get("hedge_epochs") or 10)
     if epochs < 1:
@@ -241,24 +215,23 @@ def start_hedge_native_hyperopt(args: dict[str, Any]) -> int:
     output_directory = Path(str(raw_directory or Path(base_config.get("user_data_dir", "user_data")) / "hyperopt_results" / "hedge-native")).expanduser().resolve()
     output_directory.mkdir(parents=True, exist_ok=True)
     runner = HedgeHyperoptRunner()
-    results = []
-    for number in range(epochs):
-        trial = _DeterministicTrial(seed + number)
-
-        def backtest(trial_config: dict[str, Any], number: int = number):
-            export = output_directory / f"epoch-{number:05d}.json"
-            run = run_freqtrade_hedge_backtest(trial_config, export_path=export, export_events=False)
-            if run.native_artifact is None:
-                raise RuntimeError("Hedge backtest did not produce a native artifact")
-            return run.native_artifact
-
-        results.append(runner.evaluate(
-            trial,
-            number=number,
-            base_config=base_config,
-            backtest=backtest,
-        ))
-    manifest = runner.manifest(results)
+    # Analyze invariant market/indicator inputs once. Linux Docker workers inherit
+    # this prepared surface copy-on-write, then evaluate independent epochs in
+    # separate processes so CPU-bound replay bypasses the CPython GIL.
+    prepared = prepare_freqtrade_hedge_backtest(base_config)
+    workers = int(args.get("hedge_workers") if args.get("hedge_workers") is not None else 0)
+    parallel = evaluate_native_hyperopt(
+        prepared=prepared,
+        base_config=base_config,
+        output_directory=output_directory,
+        epochs=epochs,
+        seed=seed,
+        workers=workers,
+    )
+    manifest = runner.manifest(parallel.results)
+    manifest["parallel_backend"] = parallel.backend
+    manifest["peak_workers"] = parallel.peak_workers
+    manifest["resource_samples"] = list(parallel.resource_samples)
     manifest["seed"] = seed
     manifest["epochs"] = epochs
     manifest["output_directory"] = str(output_directory)

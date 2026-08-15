@@ -38,7 +38,7 @@ class IntegrationSafetyError(RuntimeError):
     """Raised when the central persistence source is not the verified mainline."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class IntegrationReport:
     """Result of validating and normalizing the central persistence source."""
 

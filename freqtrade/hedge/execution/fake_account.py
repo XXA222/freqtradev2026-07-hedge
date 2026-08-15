@@ -12,14 +12,14 @@ from .service import IntentAction, PositionSide
 
 @dataclass(frozen=True, slots=True)
 class FakeLegPosition:
-    quantity: Decimal = Decimal("0")
-    average_price: Decimal = Decimal("0")
-    realized_pnl: Decimal = Decimal("0")
-    fees: Decimal = Decimal("0")
+    quantity: Decimal = Decimal(0)
+    average_price: Decimal = Decimal(0)
+    realized_pnl: Decimal = Decimal(0)
+    fees: Decimal = Decimal(0)
 
 
 class FakeHedgeAccount:
-    def __init__(self, *, fee_rate: Decimal = Decimal("0")) -> None:
+    def __init__(self, *, fee_rate: Decimal = Decimal(0)) -> None:
         if not fee_rate.is_finite() or fee_rate < 0:
             raise ValueError("fee_rate must be finite and non-negative")
         self._fee_rate = fee_rate
@@ -160,7 +160,7 @@ class FakeHedgeAccount:
                     realized = current.realized_pnl + (price - current.average_price) * quantity
                 else:
                     realized = current.realized_pnl + (current.average_price - price) * quantity
-                average = Decimal("0") if next_quantity == 0 else current.average_price
+                average = Decimal(0) if next_quantity == 0 else current.average_price
             updated = FakeLegPosition(
                 quantity=next_quantity,
                 average_price=average,

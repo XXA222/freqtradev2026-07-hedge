@@ -50,7 +50,7 @@ def _order(
         quantity=Decimal("0.50"),
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("2000"),
+        limit_price=Decimal(2000),
         metadata={
             "exchange": exchange,
             "planner_intent_id": "planner-1",
@@ -68,7 +68,7 @@ def _order(
     )
     lifecycle = OrderLifecycle(
         status=OrderState.ACKNOWLEDGED,
-        filled_quantity=Decimal("0"),
+        filled_quantity=Decimal(0),
         version=version,
         updated_at=datetime(2026, 8, 1, 1, tzinfo=UTC),
     )

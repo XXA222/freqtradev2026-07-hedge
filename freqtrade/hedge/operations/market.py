@@ -11,7 +11,7 @@ class MarketHealthInput:
 class MarketHealthDecision:
     ready:bool;reasons:tuple[str,...];age_seconds:Decimal;gap_seconds:Decimal|None;divergence_bps:Decimal
 class MarketDataHealthGate:
-    def __init__(self,*,max_age_seconds:int=90,max_gap_candles:int=2,max_divergence_bps:Decimal=Decimal("50")):
+    def __init__(self,*,max_age_seconds:int=90,max_gap_candles:int=2,max_divergence_bps:Decimal=Decimal(50)):
         if max_age_seconds<=0 or max_gap_candles<0 or max_divergence_bps<ZERO:raise ValueError("invalid market gate limits")
         self.max_age_seconds=max_age_seconds;self.max_gap_candles=max_gap_candles;self.max_divergence_bps=max_divergence_bps;self._last:dict[str,datetime]={}
     def evaluate(self,item:MarketHealthInput)->MarketHealthDecision:
@@ -29,7 +29,7 @@ class MarketDataHealthGate:
         if item.index_price is not None:
             if item.index_price<=ZERO:reasons.append("INDEX_PRICE_INVALID")
             else:
-                divergence=abs(item.mark_price-item.index_price)/item.index_price*Decimal("10000")
+                divergence=abs(item.mark_price-item.index_price)/item.index_price*Decimal(10000)
                 if divergence>self.max_divergence_bps:reasons.append("MARK_INDEX_DIVERGENCE")
         if not reasons or all(x not in {"MARKET_CANDLE_NON_MONOTONIC","MARKET_CANDLE_FROM_FUTURE","MARKET_INPUT_INVALID"} for x in reasons):
             if previous is None or candle>previous:self._last[item.symbol]=candle

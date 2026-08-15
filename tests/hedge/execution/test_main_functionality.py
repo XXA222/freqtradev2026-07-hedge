@@ -52,7 +52,7 @@ def make_intent(
         quantity=Decimal(quantity),
         idempotency_key=key,
         order_type=OrderType.LIMIT,
-        limit_price=Decimal("100"),
+        limit_price=Decimal(100),
         action_group_id=group_id,
     )
 
@@ -80,7 +80,7 @@ def test_fake_exchange_incremental_fills_drive_local_lifecycle() -> None:
     )
     filled_result = service.apply_exchange_event(filled)
     assert filled_result.order.lifecycle.status is OrderState.FILLED
-    assert filled_result.order.lifecycle.average_price == Decimal("106")
+    assert filled_result.order.lifecycle.average_price == Decimal(106)
     assert metrics.snapshot()["fill_quantity_total"]["_"] == "1.0"
 
 
@@ -206,7 +206,7 @@ def test_cancel_replace_remaining_builds_exact_replacement() -> None:
     assert result.canceled.order.lifecycle.status is OrderState.CANCELED
     assert result.replacement is not None
     assert result.replacement.order.approved_quantity == Decimal("0.65")
-    assert result.replacement.order.intent.limit_price == Decimal("99")
+    assert result.replacement.order.intent.limit_price == Decimal(99)
     assert result.replacement.order.intent.metadata["replaces_client_order_id"] == original.order.client_order_id
 
 

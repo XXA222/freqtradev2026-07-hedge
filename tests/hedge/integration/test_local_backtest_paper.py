@@ -27,11 +27,11 @@ def _planner() -> PlannerConfig:
     return PlannerConfig(
         short_enabled=False,
         core_wallet_exposure_long=Decimal("0.20"),
-        tactical_wallet_exposure_long=Decimal("0"),
-        initial_entry_fraction=Decimal("1"),
+        tactical_wallet_exposure_long=Decimal(0),
+        initial_entry_fraction=Decimal(1),
         max_grid_layers=1,
         cooldown_seconds=0,
-        trailing_rebound=Decimal("0"),
+        trailing_rebound=Decimal(0),
     )
 
 
@@ -50,24 +50,24 @@ def _bar(
         high=Decimal(high),
         low=Decimal(low),
         close=Decimal(close),
-        volume=Decimal("1000"),
+        volume=Decimal(1000),
     )
 
 
 def test_replay_activates_orders_on_next_bar_and_preserves_dynamic_target() -> None:
     engine = EventReplayEngine(
-        initial_balance=Decimal("1000"),
+        initial_balance=Decimal(1000),
         planner_config=_planner(),
-        leverage=Decimal("3"),
+        leverage=Decimal(3),
     )
     first = engine.advance(
         [
             SignalEvent(
                 START,
                 PAIR,
-                Decimal("1"),
-                Decimal("0"),
-                target_net=Decimal("2"),
+                Decimal(1),
+                Decimal(0),
+                target_net=Decimal(2),
                 model_version="r21-test",
                 reason="NO_LOOKAHEAD",
             ),
@@ -76,9 +76,9 @@ def test_replay_activates_orders_on_next_bar_and_preserves_dynamic_target() -> N
     )
     assert any(isinstance(item, OrderAcceptedEvent) for item in first.events)
     assert not any(isinstance(item, FillEvent) for item in first.events)
-    assert first.report["target_net_quantity"] == Decimal("2")
+    assert first.report["target_net_quantity"] == Decimal(2)
     checkpoint = engine.checkpoint()
-    assert checkpoint.signal_target_net_quantity == Decimal("2")
+    assert checkpoint.signal_target_net_quantity == Decimal(2)
 
     second = engine.advance([_bar(START + timedelta(minutes=5))])
     assert any(isinstance(item, FillEvent) for item in second.events)
@@ -162,7 +162,7 @@ def _market(ts: datetime, close: str = "100") -> MarketSnapshot:
         tick_size=Decimal("0.01"),
         qty_step=Decimal("0.001"),
         min_qty=Decimal("0.001"),
-        min_notional=Decimal("5"),
+        min_notional=Decimal(5),
     )
 
 

@@ -253,7 +253,7 @@ class HedgeExecutionEngine:
         *,
         snapshot: ExternalOrderSnapshot | None,
     ) -> FillEvent | None:
-        before_qty = Decimal("0") if previous is None else previous.lifecycle.filled_quantity
+        before_qty = Decimal(0) if previous is None else previous.lifecycle.filled_quantity
         after_qty = current.lifecycle.filled_quantity
         delta = after_qty - before_qty
         if delta <= 0:
@@ -262,7 +262,7 @@ class HedgeExecutionEngine:
         if after_avg is None:
             return None
         before_avg = None if previous is None else previous.lifecycle.average_price
-        before_notional = before_qty * (before_avg or Decimal("0"))
+        before_notional = before_qty * (before_avg or Decimal(0))
         delta_price = ((after_qty * after_avg) - before_notional) / delta
         raw_trade_id = snapshot.exchange_trade_id if snapshot is not None else None
         trade_id = raw_trade_id or sha256(
@@ -280,7 +280,7 @@ class HedgeExecutionEngine:
             price=delta_price,
             exchange_time=(snapshot.observed_at if snapshot is not None else current.lifecycle.updated_at),
             observed_time=self._clock.now(),
-            fee=(Decimal("0") if snapshot is None else snapshot.last_fill_fee),
+            fee=(Decimal(0) if snapshot is None else snapshot.last_fill_fee),
             fee_currency=("USDT" if snapshot is None else snapshot.fee_currency or "USDT"),
         )
 

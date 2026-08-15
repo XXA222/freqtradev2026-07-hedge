@@ -121,7 +121,7 @@ class MultiPairPaperHedgeRuntime:
         for pair, app in rows:
             wallet = app.wallet()
             market = app.last_market
-            mark = Decimal("1") if market is None else market.mark
+            mark = Decimal(1) if market is None else market.mark
             pair_equity[pair] = wallet.equity
             pair_gross[pair] = wallet.gross_notional(mark)
             net += (wallet.long.quantity - wallet.short.quantity) * mark

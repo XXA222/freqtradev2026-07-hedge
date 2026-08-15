@@ -6,6 +6,7 @@ single stable hook before the UI catch-all router.
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 from collections.abc import Callable
 from ipaddress import ip_address
@@ -236,7 +237,11 @@ def _register_event_publishers(app: FastAPI, *, rpc: object | None, event_hub: o
 
     from freqtrade.hedge.execution.event_publisher import HedgeEventHubPublisher
 
-    hub_callback = HedgeEventHubPublisher(event_hub).publish
+    try:
+        event_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        event_loop = None
+    hub_callback = HedgeEventHubPublisher(event_hub, loop=event_loop).publish
     if callable(add_callback):
         add_callback(hub_callback)
     elif callable(set_callback):

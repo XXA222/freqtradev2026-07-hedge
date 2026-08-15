@@ -61,7 +61,7 @@ from .service import (
 
 TESTNET_CREDENTIAL_MARKER = "BINANCE_USDM_TESTNET"
 TESTNET_ALLOWED_SYMBOLS = ("BTCUSDT", "ETHUSDT")
-DEFAULT_TESTNET_MAX_NOTIONAL = Decimal("25")
+DEFAULT_TESTNET_MAX_NOTIONAL = Decimal(25)
 
 
 @dataclass(frozen=True, slots=True, repr=False)

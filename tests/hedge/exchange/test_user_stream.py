@@ -505,10 +505,10 @@ def test_account_update_persists_balance_snapshot_from_user_stream():
     previous = BalanceFact(
         account_id="acct",
         asset="USDT",
-        wallet_balance=Decimal("100"),
-        available_balance=Decimal("80"),
-        cross_wallet_balance=Decimal("90"),
-        unrealized_pnl=Decimal("2"),
+        wallet_balance=Decimal(100),
+        available_balance=Decimal(80),
+        cross_wallet_balance=Decimal(90),
+        unrealized_pnl=Decimal(2),
         observed_at=clock.now(),
         source="BINANCE_REST",
         raw={},
@@ -523,10 +523,10 @@ def test_account_update_persists_balance_snapshot_from_user_stream():
     assert disposition is EventDisposition.APPLY
     assert len(repository.balance_snapshots) == 1
     observed = repository.balance_snapshots[0]
-    assert observed.wallet_balance == Decimal("110")
-    assert observed.cross_wallet_balance == Decimal("95")
-    assert observed.available_balance == Decimal("80")
-    assert observed.unrealized_pnl == Decimal("2")
+    assert observed.wallet_balance == Decimal(110)
+    assert observed.cross_wallet_balance == Decimal(95)
+    assert observed.available_balance == Decimal(80)
+    assert observed.unrealized_pnl == Decimal(2)
 
 
 def test_account_configuration_event_requests_rest_recalibration():
@@ -700,10 +700,10 @@ def test_stream_exposes_deterministic_latest_account_state():
     initial_balance = BalanceFact(
         account_id="acct",
         asset="USDT",
-        wallet_balance=Decimal("100"),
-        available_balance=Decimal("90"),
-        cross_wallet_balance=Decimal("100"),
-        unrealized_pnl=Decimal("0"),
+        wallet_balance=Decimal(100),
+        available_balance=Decimal(90),
+        cross_wallet_balance=Decimal(100),
+        unrealized_pnl=Decimal(0),
         observed_at=clock.now(),
         source="BINANCE_REST",
         raw={},

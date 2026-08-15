@@ -27,9 +27,9 @@ def test_position_key_contains_account() -> None:
 
 def test_local_reduce_only_clips() -> None:
     result = calculate_safe_reduce(
-        requested_quantity=Decimal("8"),
-        confirmed_quantity=Decimal("10"),
-        pending_reduce_quantity=Decimal("4"),
+        requested_quantity=Decimal(8),
+        confirmed_quantity=Decimal(10),
+        pending_reduce_quantity=Decimal(4),
     )
-    assert result.allowed_quantity == Decimal("6")
+    assert result.allowed_quantity == Decimal(6)
     assert result.clipped

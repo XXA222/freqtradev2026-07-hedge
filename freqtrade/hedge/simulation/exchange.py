@@ -73,10 +73,10 @@ class SignalEvent:
     model_version: str = "strategy"
     reason: str = ""
     target_net_ratio: Decimal | None = None
-    confidence: Decimal = Decimal("1")
-    risk_scale: Decimal = Decimal("1")
-    long_exposure_scale: Decimal = Decimal("1")
-    short_exposure_scale: Decimal = Decimal("1")
+    confidence: Decimal = Decimal(1)
+    risk_scale: Decimal = Decimal(1)
+    long_exposure_scale: Decimal = Decimal(1)
+    short_exposure_scale: Decimal = Decimal(1)
     allow_new_risk: bool = True
     regime: str = "UNSPECIFIED"
 

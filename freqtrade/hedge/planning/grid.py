@@ -25,7 +25,7 @@ def _entry_price(context: PlanningContext, side: PositionSide, layer: int) -> De
     cfg = context.config
     spacing = cfg.grid_spacing * (cfg.grid_spacing_growth ** max(layer - 1, 0))
     raw = context.market.mark * (
-        Decimal("1") - spacing if side is PositionSide.LONG else Decimal("1") + spacing
+        Decimal(1) - spacing if side is PositionSide.LONG else Decimal(1) + spacing
     )
     if raw <= ZERO:
         return ZERO

@@ -49,9 +49,9 @@ class PositionRiskLeg:
     position_side: PositionSide
     quantity: Decimal
     mark_price: Decimal
-    leverage: Decimal = Decimal("1")
+    leverage: Decimal = Decimal(1)
     reported_initial_margin: Decimal | None = None
-    maintenance_margin: Decimal = Decimal("0")
+    maintenance_margin: Decimal = Decimal(0)
     liquidation_price: Decimal | None = None
 
     def __post_init__(self) -> None:
@@ -99,7 +99,7 @@ class PositionRiskLeg:
 
     @property
     def signed_notional(self) -> Decimal:
-        sign = Decimal("1") if self.position_side is PositionSide.LONG else Decimal("-1")
+        sign = Decimal(1) if self.position_side is PositionSide.LONG else Decimal(-1)
         return sign * self.notional
 
     @property
@@ -142,7 +142,7 @@ class RiskPortfolioSnapshot:
                 for item in self.positions
                 if item.symbol == canonical and item.position_side is side
             ),
-            Decimal("0"),
+            Decimal(0),
         )
 
     def leg_notional(
@@ -158,14 +158,14 @@ class RiskPortfolioSnapshot:
                 for item in self.positions
                 if item.symbol == canonical and item.position_side is side
             ),
-            Decimal("0"),
+            Decimal(0),
         )
 
     def symbol_gross_notional(self, symbol: str) -> Decimal:
         canonical = canonicalize_symbol(symbol)
         return sum(
             (item.notional for item in self.positions if item.symbol == canonical),
-            Decimal("0"),
+            Decimal(0),
         )
 
     def pending_reduce_quantity(
@@ -183,7 +183,7 @@ class RiskPortfolioSnapshot:
                 and item.position_side is side
                 and item.action.reduces_risk
             ),
-            Decimal("0"),
+            Decimal(0),
         )
 
     def pending_increase_notional(
@@ -201,7 +201,7 @@ class RiskPortfolioSnapshot:
                 and item.increases_risk
                 and (side is None or item.position_side is side)
             ),
-            Decimal("0"),
+            Decimal(0),
         )
 
     def build_request(
@@ -212,7 +212,7 @@ class RiskPortfolioSnapshot:
         action: PositionAction | str,
         requested_quantity: Decimal,
         reference_price: Decimal,
-        leverage: Decimal = Decimal("1"),
+        leverage: Decimal = Decimal(1),
         exchange: str | None = None,
         intent_id: str | None = None,
         idempotency_key: str | None = None,
@@ -227,7 +227,7 @@ class RiskPortfolioSnapshot:
             action if isinstance(action, PositionAction) else PositionAction(str(action).upper())
         )
         confirmed = None
-        pending_reduce = Decimal("0")
+        pending_reduce = Decimal(0)
         if normalized_action.reduces_risk:
             confirmed = self.confirmed_quantity(canonical, side)
             pending_reduce = self.pending_reduce_quantity(canonical, side)
@@ -313,19 +313,19 @@ def build_risk_portfolio(
 
     gross_long = sum(
         (item.notional for item in position_items if item.position_side is PositionSide.LONG),
-        Decimal("0"),
+        Decimal(0),
     )
     gross_short = sum(
         (item.notional for item in position_items if item.position_side is PositionSide.SHORT),
-        Decimal("0"),
+        Decimal(0),
     )
     initial = (
-        sum((item.initial_margin for item in position_items), Decimal("0"))
+        sum((item.initial_margin for item in position_items), Decimal(0))
         if initial_margin is None
         else require_nonnegative(initial_margin, field="initial_margin")
     )
     maintenance = (
-        sum((item.maintenance_margin for item in position_items), Decimal("0"))
+        sum((item.maintenance_margin for item in position_items), Decimal(0))
         if maintenance_margin is None
         else require_nonnegative(maintenance_margin, field="maintenance_margin")
     )
@@ -333,19 +333,19 @@ def build_risk_portfolio(
     risk_increasing_orders = tuple(item for item in pending_items if item.increases_risk)
     pending_notional = sum(
         (item.remaining_notional for item in risk_increasing_orders),
-        Decimal("0"),
+        Decimal(0),
     )
     pending_initial_margin = sum(
         (item.remaining_initial_margin for item in risk_increasing_orders),
-        Decimal("0"),
+        Decimal(0),
     )
     pending_maintenance_margin = sum(
         (item.remaining_maintenance_margin for item in risk_increasing_orders),
-        Decimal("0"),
+        Decimal(0),
     )
     pending_net_delta = sum(
         (item.signed_net_notional_delta for item in risk_increasing_orders),
-        Decimal("0"),
+        Decimal(0),
     )
     pending_long = sum(
         (
@@ -353,7 +353,7 @@ def build_risk_portfolio(
             for item in risk_increasing_orders
             if item.position_side is PositionSide.LONG
         ),
-        Decimal("0"),
+        Decimal(0),
     )
     pending_short = sum(
         (
@@ -361,7 +361,7 @@ def build_risk_portfolio(
             for item in risk_increasing_orders
             if item.position_side is PositionSide.SHORT
         ),
-        Decimal("0"),
+        Decimal(0),
     )
 
     equity_value = require_positive(equity, field="equity")
@@ -396,7 +396,7 @@ def build_risk_portfolio(
             account_maintenance_buffer=account_buffer,
         )
         if not completeness_errors
-        else Decimal("0")
+        else Decimal(0)
     )
     effective_valid = risk_data_valid and (
         not strict_completeness or not completeness_errors

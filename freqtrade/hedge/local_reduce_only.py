@@ -34,12 +34,12 @@ def calculate_safe_reduce(
     *,
     requested_quantity: Decimal | str | int | float,
     confirmed_quantity: Decimal | str | int | float,
-    pending_reduce_quantity: Decimal | str | int | float = Decimal("0"),
+    pending_reduce_quantity: Decimal | str | int | float = Decimal(0),
 ) -> SafeReduceResult:
     requested = require_nonnegative(requested_quantity, field="requested_quantity")
     confirmed = require_nonnegative(confirmed_quantity, field="confirmed_quantity")
     pending = require_nonnegative(pending_reduce_quantity, field="pending_reduce_quantity")
-    available = max(confirmed - pending, Decimal("0"))
+    available = max(confirmed - pending, Decimal(0))
     allowed = min(requested, available)
     if allowed == requested:
         reason = "FULLY_ALLOWED"

@@ -4,7 +4,7 @@ from pathlib import Path
 from freqtrade.hedge.control.dryrun import DryRunControlMode,DryRunControlState
 from freqtrade.hedge.telemetry.dryrun import DryRunCycleTelemetry,JsonlDryRunTelemetryStore
 
-def item(i=1):return DryRunCycleTelemetry(cycle_id=str(i),account_id="a",symbol="BTC",timestamp=datetime.now(UTC),mark_price=Decimal("100"),equity=Decimal("1000"),available_balance=Decimal("900"),gross_notional=Decimal("100"),net_quantity=Decimal("1"))
+def item(i=1):return DryRunCycleTelemetry(cycle_id=str(i),account_id="a",symbol="BTC",timestamp=datetime.now(UTC),mark_price=Decimal(100),equity=Decimal(1000),available_balance=Decimal(900),gross_notional=Decimal(100),net_quantity=Decimal(1))
 
 def test_control_persists_and_corruption_fails_closed(tmp_path):
     p=tmp_path/"control.json";s=DryRunControlState(p);s.pause_new_risk(actor="u",reason="x")

@@ -121,10 +121,10 @@ def validate_worker_budget(*, workers: int, trials: int) -> None:
         or not isinstance(trials, int)
     ):
         raise TypeError("workers and trials must be integers")
-    if workers < 1 or trials < 1:
-        raise ValueError("workers and trials must be positive")
-    if workers > trials:
-        raise ValueError("workers cannot exceed trial count")
+    if workers < -1 or trials < 1:
+        raise ValueError("workers must be -1, 0, or positive; trials must be positive")
+    if workers > 1 and workers > trials:
+        raise ValueError("explicit workers cannot exceed trial count")
 
 
 def validate_failure_budget(*, max_failures: int, trials: int, fail_fast: bool) -> None:

@@ -20,10 +20,151 @@ HEDGE_ROLE_SCHEMA: dict[str, Any] = {
 }
 
 
+HEDGE_RL_ACTION_SPACE_SCHEMA: dict[str, Any] = {
+    "description": "Dual-leg Hedge RL target risk-level action space.",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "enabled": {"type": "boolean", "default": True},
+        "position_levels": {
+            "type": "array",
+            "items": {"type": "number", "minimum": 0.0, "maximum": 0.50},
+            "minItems": 5,
+            "maxItems": 5,
+            "default": [0.0, 0.05, 0.12, 0.25, 0.40],
+        },
+        "long_leverage": {"type": "number", "exclusiveMinimum": 0.0},
+        "short_leverage": {"type": "number", "exclusiveMinimum": 0.0},
+        "max_combined_margin_fraction": {
+            "type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0
+        },
+        "minimum_reserve_margin_fraction": {
+            "type": "number", "minimum": 0.0, "exclusiveMaximum": 1.0
+        },
+        "hard_max_margin_fraction_per_leg": {
+            "type": "number", "exclusiveMinimum": 0.0, "maximum": 0.50
+        },
+        "rebalance_deadband_fraction": {
+            "type": "number", "minimum": 0.0, "maximum": 0.05
+        },
+    },
+}
+
+
+HEDGE_RL_REWARD_SCHEMA: dict[str, Any] = {
+    "description": "Account-equity-first reward and risk-shaping parameters for Hedge RL.",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "equity_log_return_scale": {"type": "number", "minimum": 0.0},
+        "drawdown_weight": {"type": "number", "minimum": 0.0},
+        "downside_exposure_weight": {"type": "number", "minimum": 0.0},
+        "downside_ewma_weight": {"type": "number", "minimum": 0.0},
+        "downside_ewma_alpha": {"type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0},
+        "uncertainty_exposure_weight": {"type": "number", "minimum": 0.0},
+        "leverage_exposure_weight": {"type": "number", "minimum": 0.0},
+        "preferred_reserve_margin_fraction": {"type": "number", "minimum": 0.0, "exclusiveMaximum": 1.0},
+        "reserve_pressure_weight": {"type": "number", "minimum": 0.0},
+        "minimum_liquidation_buffer_fraction": {"type": "number", "minimum": 0.0, "exclusiveMaximum": 1.0},
+        "liquidation_buffer_weight": {"type": "number", "minimum": 0.0},
+        "wrong_level_loss_weight": {"type": "number", "minimum": 0.0},
+        "position_success_bonus_weight": {"type": "number", "minimum": 0.0},
+        "loss_level_multipliers": {
+            "type": "array", "items": {"type": "number", "minimum": 0.0}, "minItems": 5, "maxItems": 5
+        },
+        "win_level_multipliers": {
+            "type": "array", "items": {"type": "number", "minimum": 0.0}, "minItems": 5, "maxItems": 5
+        },
+        "adverse_scale_in_weight": {"type": "number", "minimum": 0.0},
+        "upward_jump_weight": {"type": "number", "minimum": 0.0},
+        "level_churn_weight": {"type": "number", "minimum": 0.0},
+        "turnover_shaping_weight": {"type": "number", "minimum": 0.0},
+        "repeated_probe_weight": {"type": "number", "minimum": 0.0},
+        "risk_reduction_bonus_weight": {"type": "number", "minimum": 0.0},
+        "profit_lock_bonus_weight": {"type": "number", "minimum": 0.0},
+        "hedge_efficiency_weight": {"type": "number", "minimum": 0.0},
+        "hedge_waste_weight": {"type": "number", "minimum": 0.0},
+        "delayed_scale_bonus_weight": {"type": "number", "minimum": 0.0},
+        "delayed_probe_bonus_weight": {"type": "number", "minimum": 0.0},
+        "scale_confirmation_steps": {"type": "integer", "minimum": 1},
+        "probe_confirmation_steps": {"type": "integer", "minimum": 1},
+        "probe_drawdown_limit": {"type": "number", "minimum": 0.0},
+        "max_positive_shaping": {"type": "number", "minimum": 0.0},
+        "reward_clip": {"type": "number", "exclusiveMinimum": 0.0},
+        "soft_clip": {"type": "boolean"},
+    },
+}
+
+
+
+HEDGE_RL_RUNTIME_SCHEMA: dict[str, Any] = {
+    "description": "Shared runtime/memory/adaptive-CPU settings for Hedge RL learners.",
+    "type": "object",
+    "additionalProperties": True,
+    "properties": {
+        "observation_window": {"type": "integer", "minimum": 2},
+        "max_episode_steps": {"type": "integer", "minimum": 1},
+        "starting_balance": {"type": "number", "exclusiveMinimum": 0.0},
+        "fee_rate": {"type": "number", "minimum": 0.0},
+        "slippage_bps": {"type": "number", "minimum": 0.0, "exclusiveMaximum": 10000.0},
+        "funding_rate_per_step": {"type": "number"},
+        "drawdown_stop": {"type": "number", "exclusiveMinimum": 0.0, "exclusiveMaximum": 1.0},
+        "maintenance_margin_ratio": {"type": "number", "minimum": 0.0, "exclusiveMaximum": 1.0},
+        "feature_clip": {"type": "number", "exclusiveMinimum": 0.0},
+        "default_uncertainty_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "random_start": {"type": "boolean"},
+        "seed": {"type": "integer"},
+        "max_feature_age_steps": {"type": "integer", "minimum": 0},
+        "memory": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "feature_dtype": {"type": "string", "enum": ["float32", "float64"]},
+                "reward_breakdown_interval": {"type": "integer", "minimum": 0},
+                "gc_collect_every_episodes": {"type": "integer", "minimum": 0},
+                "release_training_envs_after_fit": {"type": "boolean"},
+                "release_phase_memory_after_fit": {"type": "boolean"},
+                "release_phase_memory_after_predict": {"type": "boolean"},
+                "max_pending_reward_outcomes": {"type": "integer", "minimum": 8},
+            },
+        },
+        "adaptive_cpu": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "max_torch_threads": {"type": "integer", "minimum": 1},
+                "min_torch_threads": {"type": "integer", "minimum": 1},
+                "refresh_train_steps": {"type": "integer", "minimum": 1},
+            },
+        },
+    },
+}
+
 def extend_config_schema(conf_schema: dict[str, Any]) -> None:
     """Idempotently attach Hedge fields to an upstream Freqtrade schema."""
 
     properties = conf_schema.setdefault("properties", {})
+
+    # Extend FreqAI RL through the existing Hedge schema boundary rather than editing
+    # upstream rl_config definitions.  This makes action/reward mistakes fail at config
+    # validation instead of several minutes into training.
+    definitions = conf_schema.get("definitions", {})
+    freqai_definition = definitions.get("freqai") if isinstance(definitions, dict) else None
+    if isinstance(freqai_definition, dict):
+        freqai_properties = freqai_definition.setdefault("properties", {})
+        rl_config = freqai_properties.get("rl_config")
+        if isinstance(rl_config, dict):
+            rl_properties = rl_config.setdefault("properties", {})
+            rl_properties.setdefault("hedge_action_space", HEDGE_RL_ACTION_SPACE_SCHEMA)
+            rl_properties.setdefault("hedge_reward", HEDGE_RL_REWARD_SCHEMA)
+        freqai_properties.setdefault("hedge_rl_config", HEDGE_RL_RUNTIME_SCHEMA)
+
+    # Remove an empty sibling accidentally created by an older extension attempt.
+    freqai_ref = properties.get("freqai")
+    if isinstance(freqai_ref, dict) and freqai_ref.get("properties") == {}:
+        freqai_ref.pop("properties", None)
+
     api_server = properties.get("api_server")
     if isinstance(api_server, dict):
         api_properties = api_server.setdefault("properties", {})

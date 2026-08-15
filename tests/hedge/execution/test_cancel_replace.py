@@ -18,16 +18,16 @@ def test_replacement_gets_new_intent_identity_and_parent_link() -> None:
             symbol="ETHUSDT",
             position_side=PositionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key="original",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("100"),
+            limit_price=Decimal(100),
         )
     )
     result = CancelReplaceCoordinator(harness.service).execute_remaining(
         original_client_order_id=original.order.client_order_id,
         idempotency_key="replacement",
-        limit_price=Decimal("99"),
+        limit_price=Decimal(99),
     )
     assert result.replacement is not None
     replacement = result.replacement.order.intent

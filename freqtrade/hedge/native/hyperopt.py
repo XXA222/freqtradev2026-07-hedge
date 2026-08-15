@@ -22,6 +22,36 @@ class TrialLike(Protocol):
     def suggest_categorical(self, name: str, choices: Iterable[Any]) -> Any: ...
 
 
+class DeterministicTrial:
+    """Small reproducible TrialLike source used by native Hedge searches."""
+
+    def __init__(self, seed: int) -> None:
+        from random import Random
+
+        self._random = Random(seed)
+
+    def suggest_float(self, name: str, low: float, high: float, **kwargs: Any) -> float:
+        from math import exp, log
+
+        step = kwargs.get("step")
+        if kwargs.get("log"):
+            value = exp(self._random.uniform(log(low), log(high)))
+        else:
+            value = self._random.uniform(low, high)
+        if step:
+            value = low + round((value - low) / float(step)) * float(step)
+        return min(max(value, low), high)
+
+    def suggest_int(self, name: str, low: int, high: int, **kwargs: Any) -> int:
+        step = int(kwargs.get("step", 1))
+        count = (high - low) // step
+        return low + self._random.randint(0, count) * step
+
+    def suggest_categorical(self, name: str, choices: Iterable[Any]) -> Any:
+        values = tuple(choices)
+        return values[self._random.randrange(len(values))]
+
+
 @dataclass(frozen=True, slots=True)
 class DecimalSpace:
     name: str
@@ -88,8 +118,8 @@ class HedgeHyperoptSpace:
 
     spaces: tuple[Space, ...] = field(default_factory=lambda: (
         DecimalSpace("grid_spacing", Decimal("0.001"), Decimal("0.03"), Decimal("0.001")),
-        DecimalSpace("grid_spacing_growth", Decimal("1"), Decimal("2"), Decimal("0.05")),
-        DecimalSpace("grid_qty_growth", Decimal("0.5"), Decimal("2"), Decimal("0.05")),
+        DecimalSpace("grid_spacing_growth", Decimal(1), Decimal(2), Decimal("0.05")),
+        DecimalSpace("grid_qty_growth", Decimal("0.5"), Decimal(2), Decimal("0.05")),
         IntegerSpace("max_grid_layers", 1, 12),
         IntegerSpace("take_profit_layers", 1, 12),
         DecimalSpace("core_wallet_exposure_long", Decimal("0.02"), Decimal("0.50"), Decimal("0.01")),
@@ -98,7 +128,12 @@ class HedgeHyperoptSpace:
         DecimalSpace("tactical_wallet_exposure_short", Decimal("0.01"), Decimal("0.30"), Decimal("0.01")),
         DecimalSpace("max_gross_wallet_exposure", Decimal("0.10"), Decimal("1.50"), Decimal("0.05")),
         DecimalSpace("take_profit_spacing", Decimal("0.001"), Decimal("0.05"), Decimal("0.001")),
-        DecimalSpace("unstuck_threshold", Decimal("0.01"), Decimal("0.30"), Decimal("0.01")),
+        DecimalSpace(
+            "unstuck_trigger_gross_exposure",
+            Decimal("0.01"),
+            Decimal("0.30"),
+            Decimal("0.01"),
+        ),
         DecimalSpace("stoploss", Decimal("-0.40"), Decimal("-0.01"), Decimal("0.01")),
         DecimalSpace("roi_0", Decimal("0.002"), Decimal("0.15"), Decimal("0.002")),
         DecimalSpace("trailing_positive", Decimal("0.001"), Decimal("0.05"), Decimal("0.001")),
@@ -131,13 +166,15 @@ class HedgeHyperoptSpace:
         hedge = dict(config.get("hedge", {}))
         planner = dict(hedge.get("planner", {}))
         native = dict(hedge.get("native_convergence", {}))
+        paper = dict(hedge.get("paper", {}))
         exits = dict(native.get("exits", {}))
         planner_names = {
             "grid_spacing", "grid_spacing_growth", "grid_qty_growth",
             "max_grid_layers", "take_profit_layers",
             "core_wallet_exposure_long", "core_wallet_exposure_short",
             "tactical_wallet_exposure_long", "tactical_wallet_exposure_short",
-            "max_gross_wallet_exposure", "take_profit_spacing", "unstuck_threshold",
+            "max_gross_wallet_exposure", "take_profit_spacing",
+            "unstuck_trigger_gross_exposure",
         }
         for name, value in params.items():
             serialized = str(value) if isinstance(value, Decimal) else value
@@ -154,9 +191,10 @@ class HedgeHyperoptSpace:
             elif name == "trailing_offset":
                 config["trailing_stop_positive_offset"] = serialized
             elif name == "max_fill_ratio_per_order":
-                hedge[name] = serialized
+                paper[name] = serialized
         native["exits"] = exits
         hedge["planner"] = planner
+        hedge["paper"] = paper
         hedge["native_convergence"] = native
         config["hedge"] = hedge
         return config
@@ -164,9 +202,9 @@ class HedgeHyperoptSpace:
 
 @dataclass(frozen=True, slots=True)
 class HedgeHyperoptWeights:
-    return_reward: Decimal = Decimal("1")
-    drawdown_penalty: Decimal = Decimal("2")
-    liquidation_penalty: Decimal = Decimal("5")
+    return_reward: Decimal = Decimal(1)
+    drawdown_penalty: Decimal = Decimal(2)
+    liquidation_penalty: Decimal = Decimal(5)
     funding_penalty: Decimal = Decimal("0.5")
     fee_penalty: Decimal = Decimal("0.25")
     gross_penalty: Decimal = Decimal("0.2")
@@ -194,7 +232,7 @@ class HedgeMultiObjectiveLoss:
         gross_ratio = metrics.max_gross_notional / start
         inactivity = ONE if metrics.fill_count == 0 else ZERO
         liquidation_proxy = max(metrics.max_margin_utilization - Decimal("0.80"), ZERO)
-        turnover_proxy = Decimal(metrics.fill_count) / Decimal("1000")
+        turnover_proxy = Decimal(metrics.fill_count) / Decimal(1000)
         score = (
             -metrics.total_return * self.weights.return_reward
             + metrics.max_drawdown * self.weights.drawdown_penalty

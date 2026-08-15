@@ -63,6 +63,20 @@ class MutableTacticalLot:
             closed_quantity=self.closed_quantity,
         )
 
+    def clone_for_matcher(self) -> "MutableTacticalLot":
+        """Cheap exact copy for conservative OHLC path simulation."""
+        return MutableTacticalLot(
+            lot_id=self.lot_id,
+            quantity=self.quantity,
+            average_price=self.average_price,
+            opened_at=self.opened_at,
+            layer=self.layer,
+            realized_pnl=self.realized_pnl,
+            fees=self.fees,
+            funding=self.funding,
+            closed_quantity=self.closed_quantity,
+        )
+
 
 @dataclass(slots=True)
 class MutableLeg:
@@ -75,9 +89,19 @@ class MutableLeg:
     tactical_average_price: Decimal = ZERO
     realized_pnl: Decimal = ZERO
     tactical_realized_pnl: Decimal = ZERO
+    tactical_archived_realized_pnl: Decimal = ZERO
+    tactical_archived_funding: Decimal = ZERO
+    tactical_archived_fees: Decimal = ZERO
+    tactical_closed_lot_count: int = 0
     add_count: int = 0
     reduce_count: int = 0
     tactical_lots: dict[str, MutableTacticalLot] = field(default_factory=dict)
+    _immutable_cache_key: tuple[object, ...] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+    _immutable_cache: LegPosition | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
     def _refresh_tactical_aggregate(self) -> None:
         open_lots = [lot for lot in self.tactical_lots.values() if lot.quantity > ZERO]
@@ -249,8 +273,76 @@ class MutableLeg:
         lots = self._open_lots()
         return lots[0].opened_at if lots else None
 
+
+    def prune_closed_tactical_lots(self) -> int:
+        """Archive and release fully closed tactical lots without changing PnL."""
+        closed_ids = [
+            lot_id
+            for lot_id, lot in self.tactical_lots.items()
+            if lot.quantity == ZERO and lot.closed_quantity > ZERO
+        ]
+        for lot_id in closed_ids:
+            lot = self.tactical_lots.pop(lot_id)
+            self.tactical_archived_realized_pnl += lot.realized_pnl
+            self.tactical_archived_funding += lot.funding
+            self.tactical_archived_fees += lot.fees
+            self.tactical_closed_lot_count += 1
+        return len(closed_ids)
+
+    def tactical_net_pnl(self) -> Decimal:
+        archived = (
+            self.tactical_archived_realized_pnl
+            + self.tactical_archived_funding
+            - self.tactical_archived_fees
+        )
+        live = sum(
+            (lot.realized_pnl + lot.funding - lot.fees for lot in self.tactical_lots.values()),
+            ZERO,
+        )
+        return archived + live
+    def clone_for_matcher(self) -> "MutableLeg":
+        """Copy only mutable matcher state without generic ``deepcopy`` traversal."""
+        return MutableLeg(
+            side=self.side,
+            quantity=self.quantity,
+            average_price=self.average_price,
+            core_quantity=self.core_quantity,
+            core_average_price=self.core_average_price,
+            tactical_quantity=self.tactical_quantity,
+            tactical_average_price=self.tactical_average_price,
+            realized_pnl=self.realized_pnl,
+            tactical_realized_pnl=self.tactical_realized_pnl,
+            tactical_archived_realized_pnl=self.tactical_archived_realized_pnl,
+            tactical_archived_funding=self.tactical_archived_funding,
+            tactical_archived_fees=self.tactical_archived_fees,
+            tactical_closed_lot_count=self.tactical_closed_lot_count,
+            add_count=self.add_count,
+            reduce_count=self.reduce_count,
+            tactical_lots={
+                lot_id: lot.clone_for_matcher()
+                for lot_id, lot in self.tactical_lots.items()
+            },
+        )
+
     def immutable(self) -> LegPosition:
-        return LegPosition(
+        lot_key = tuple(
+            (
+                lot.lot_id, lot.quantity, lot.average_price, lot.opened_at, lot.layer,
+                lot.realized_pnl, lot.fees, lot.funding, lot.closed_quantity,
+            )
+            for lot in sorted(
+                self.tactical_lots.values(),
+                key=lambda item: (item.opened_at, item.layer, item.lot_id),
+            )
+        )
+        key = (
+            self.side, self.quantity, self.average_price, self.core_quantity,
+            self.core_average_price, self.tactical_quantity, self.tactical_average_price,
+            self.realized_pnl, self.tactical_realized_pnl, lot_key,
+        )
+        if key == self._immutable_cache_key and self._immutable_cache is not None:
+            return self._immutable_cache
+        value = LegPosition(
             side=self.side,
             quantity=self.quantity,
             average_price=self.average_price,
@@ -261,28 +353,42 @@ class MutableLeg:
             realized_pnl=self.realized_pnl,
             tactical_realized_pnl=self.tactical_realized_pnl,
             tactical_lots=tuple(
-                lot.immutable()
-                for lot in sorted(
-                    self.tactical_lots.values(),
-                    key=lambda item: (item.opened_at, item.layer, item.lot_id),
+                TacticalLot(
+                    lot_id=item[0], quantity=item[1], average_price=item[2],
+                    opened_at=item[3], layer=item[4], realized_pnl=item[5],
+                    fees=item[6], funding=item[7], closed_quantity=item[8],
                 )
+                for item in lot_key
             ),
         )
+        self._immutable_cache_key = key
+        self._immutable_cache = value
+        return value
 
 
 @dataclass(slots=True)
 class CrossWallet:
     initial_balance: Decimal
-    leverage: Decimal = Decimal("1")
+    leverage: Decimal = Decimal(1)
     fee_rate: Decimal = Decimal("0.0004")
     balance: Decimal = field(init=False)
     long: MutableLeg = field(default_factory=lambda: MutableLeg(PositionSide.LONG))
     short: MutableLeg = field(default_factory=lambda: MutableLeg(PositionSide.SHORT))
     active_orders: dict[str, tuple[OrderIntent, Decimal]] = field(default_factory=dict)
     order_accepted_times: dict[str, datetime] = field(default_factory=dict)
+    order_book_revision: int = 0
+    _planner_orders_cache_revision: int = field(default=-1, init=False, repr=False)
+    _planner_orders_cache: tuple[ActiveOrder, ...] = field(
+        default=(), init=False, repr=False
+    )
     processed_fill_ids: set[str] = field(default_factory=set)
     processed_liquidation_ids: set[str] = field(default_factory=set)
     realized_by_fill: dict[str, Decimal] = field(default_factory=dict)
+    fill_count: int = 0
+    winning_realizations: int = 0
+    losing_realizations: int = 0
+    gross_realized_profit: Decimal = ZERO
+    gross_realized_loss: Decimal = ZERO
     fees_paid: Decimal = ZERO
     maker_fees_paid: Decimal = ZERO
     taker_fees_paid: Decimal = ZERO
@@ -325,16 +431,70 @@ class CrossWallet:
             raise ValueError("leverage must be positive")
         if self.fee_rate < ZERO:
             raise ValueError("fee rate cannot be negative")
-        if not ZERO <= self.maintenance_margin_rate <= Decimal("1"):
+        if not ZERO <= self.maintenance_margin_rate <= Decimal(1):
             raise ValueError("maintenance margin rate must be between zero and one")
-        if not ZERO <= self.liquidation_fee_rate <= Decimal("1"):
+        if not ZERO <= self.liquidation_fee_rate <= Decimal(1):
             raise ValueError("liquidation fee rate must be between zero and one")
-        if not ZERO <= self.liquidation_buffer_warning_ratio <= Decimal("1"):
+        if not ZERO <= self.liquidation_buffer_warning_ratio <= Decimal(1):
             raise ValueError("liquidation warning ratio must be between zero and one")
         if self.long.side is not PositionSide.LONG or self.short.side is not PositionSide.SHORT:
             raise ValueError("mutable wallet legs have invalid sides")
         self.balance = self.initial_balance
         self.equity_peak = self.initial_balance
+
+    def clone_for_matcher(self) -> "CrossWallet":
+        """Copy mutable simulation state without recursive ``copy.deepcopy``.
+
+        Decimal values, timestamps and ``OrderIntent`` instances are immutable, so
+        matcher shadows only need fresh mutable containers and mutable leg/lot
+        objects.  Using ``object.__new__`` avoids repeating configuration validation
+        for every OHLC path.
+        """
+        clone = object.__new__(CrossWallet)
+        clone.initial_balance = self.initial_balance
+        clone.leverage = self.leverage
+        clone.fee_rate = self.fee_rate
+        clone.balance = self.balance
+        clone.long = self.long.clone_for_matcher()
+        clone.short = self.short.clone_for_matcher()
+        clone.active_orders = self.active_orders.copy()
+        clone.order_accepted_times = self.order_accepted_times.copy()
+        clone.order_book_revision = self.order_book_revision
+        clone._planner_orders_cache_revision = -1
+        clone._planner_orders_cache = ()
+        clone.processed_fill_ids = self.processed_fill_ids.copy()
+        clone.processed_liquidation_ids = self.processed_liquidation_ids.copy()
+        clone.realized_by_fill = self.realized_by_fill.copy()
+        clone.fill_count = self.fill_count
+        clone.winning_realizations = self.winning_realizations
+        clone.losing_realizations = self.losing_realizations
+        clone.gross_realized_profit = self.gross_realized_profit
+        clone.gross_realized_loss = self.gross_realized_loss
+        clone.fees_paid = self.fees_paid
+        clone.maker_fees_paid = self.maker_fees_paid
+        clone.taker_fees_paid = self.taker_fees_paid
+        clone.maker_fill_count = self.maker_fill_count
+        clone.taker_fill_count = self.taker_fill_count
+        clone.long_fees_paid = self.long_fees_paid
+        clone.short_fees_paid = self.short_fees_paid
+        clone.tactical_fees_paid = self.tactical_fees_paid
+        clone.funding_paid = self.funding_paid
+        clone.long_funding = self.long_funding
+        clone.short_funding = self.short_funding
+        clone.tactical_funding = self.tactical_funding
+        clone.gross_peak = self.gross_peak
+        clone.max_drawdown = self.max_drawdown
+        clone.equity_peak = self.equity_peak
+        clone.hedge_duration_seconds = self.hedge_duration_seconds
+        clone.last_timestamp = self.last_timestamp
+        clone.dual_leg_active = self.dual_leg_active
+        clone.core_cost_basis_initial = self.core_cost_basis_initial.copy()
+        clone.maintenance_margin_rate = self.maintenance_margin_rate
+        clone.liquidation_fee_rate = self.liquidation_fee_rate
+        clone.liquidation_buffer_warning_ratio = self.liquidation_buffer_warning_ratio
+        clone.liquidated = self.liquidated
+        clone.liquidation_count = self.liquidation_count
+        return clone
 
     def leg(self, side: PositionSide) -> MutableLeg:
         return self.long if side is PositionSide.LONG else self.short
@@ -357,13 +517,17 @@ class CrossWallet:
         self.active_orders[order_id] = (intent, intent.quantity)
         if accepted_at is not None:
             self.order_accepted_times[order_id] = utc_aware(accepted_at)
+        self.order_book_revision += 1
 
     def order_accepted_at(self, order_id: str) -> datetime | None:
         return self.order_accepted_times.get(order_id)
 
     def cancel_order(self, order_id: str) -> None:
+        existed = order_id in self.active_orders
         self.active_orders.pop(order_id, None)
         self.order_accepted_times.pop(order_id, None)
+        if existed:
+            self.order_book_revision += 1
 
     def remaining(self, order_id: str) -> Decimal:
         item = self.active_orders.get(order_id)
@@ -403,6 +567,7 @@ class CrossWallet:
             self.order_accepted_times.pop(fill.order_id, None)
         else:
             self.active_orders[fill.order_id] = (intent, remaining_after)
+        self.order_book_revision += 1
 
         tactical_fee = ZERO
         realized = ZERO
@@ -452,6 +617,13 @@ class CrossWallet:
             self.tactical_fees_paid += fill.fee
         self.realized_by_fill[fill.event_id] = realized
         self.processed_fill_ids.add(fill.event_id)
+        self.fill_count += 1
+        if realized > ZERO:
+            self.winning_realizations += 1
+            self.gross_realized_profit += realized
+        elif realized < ZERO:
+            self.losing_realizations += 1
+            self.gross_realized_loss += -realized
         return True
 
     def apply_funding(self, long_amount: Decimal, short_amount: Decimal) -> Decimal:
@@ -475,10 +647,29 @@ class CrossWallet:
         return total
 
     def unrealized(self, mark: Decimal) -> Decimal:
-        return (
-            self.long.immutable().unrealized_pnl(mark)
-            + self.short.immutable().unrealized_pnl(mark)
+        """Return mark-to-market PnL without allocating immutable leg snapshots."""
+        long_pnl = (
+            (mark - self.long.average_price) * self.long.quantity
+            if self.long.quantity > ZERO
+            else ZERO
         )
+        short_pnl = (
+            (self.short.average_price - mark) * self.short.quantity
+            if self.short.quantity > ZERO
+            else ZERO
+        )
+        return long_pnl + short_pnl
+
+    def risk_scalars(
+        self,
+        mark: Decimal,
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
+        """Compute the scalar risk surface once for one wallet state/mark."""
+        gross = (self.long.quantity + self.short.quantity) * mark
+        equity = self.balance + self.unrealized(mark)
+        maintenance = gross * self.maintenance_margin_rate
+        reserve = gross * self.liquidation_fee_rate
+        return equity, gross, maintenance, reserve, equity - maintenance - reserve
 
     def equity(self, mark: Decimal) -> Decimal:
         return self.balance + self.unrealized(mark)
@@ -506,31 +697,28 @@ class CrossWallet:
         return self.gross_notional(mark) * self.liquidation_fee_rate
 
     def liquidation_buffer(self, mark: Decimal) -> Decimal:
-        return (
-            self.equity(mark)
-            - self.maintenance_margin(mark)
-            - self.liquidation_fee_reserve(mark)
-        )
+        return self.risk_scalars(mark)[4]
 
     def liquidation_buffer_ratio(self, mark: Decimal) -> Decimal:
         if self.liquidated:
             return ZERO
-        gross = self.gross_notional(mark)
-        return self.liquidation_buffer(mark) / gross if gross > ZERO else Decimal("1")
+        _, gross, _, _, buffer = self.risk_scalars(mark)
+        return buffer / gross if gross > ZERO else Decimal(1)
 
     def liquidation_warning(self, mark: Decimal) -> bool:
+        if self.liquidated:
+            return False
+        _, gross, _, _, buffer = self.risk_scalars(mark)
         return (
-            self.gross_notional(mark) > ZERO
-            and self.liquidation_buffer_ratio(mark)
-            <= self.liquidation_buffer_warning_ratio
+            gross > ZERO
+            and buffer / gross <= self.liquidation_buffer_warning_ratio
         )
 
     def should_liquidate(self, mark: Decimal) -> bool:
-        return (
-            not self.liquidated
-            and self.gross_notional(mark) > ZERO
-            and self.liquidation_buffer(mark) <= ZERO
-        )
+        if self.liquidated:
+            return False
+        _, gross, _, _, buffer = self.risk_scalars(mark)
+        return gross > ZERO and buffer <= ZERO
 
     def create_liquidation_event(
         self,
@@ -611,6 +799,8 @@ class CrossWallet:
         self.long_fees_paid += long_fee
         self.short_fees_paid += short_fee
         self.tactical_fees_paid += tactical_liquidation_fee
+        if self.active_orders:
+            self.order_book_revision += 1
         self.active_orders.clear()
         self.order_accepted_times.clear()
         self.liquidated = True
@@ -628,39 +818,47 @@ class CrossWallet:
 
     def planner_snapshot(self, mark: Decimal, timestamp: datetime) -> WalletSnapshot:
         created_at = utc_aware(timestamp)
-        active = tuple(
-            ActiveOrder(
-                order_id=order_id,
-                symbol=intent.symbol,
-                position_side=intent.position_side,
-                order_side=intent.order_side,
-                quantity=remaining,
-                price=intent.price,
-                reduce_only=intent.reduce_only,
-                bucket=intent.bucket,
-                action=intent.action,
-                created_at=self.order_accepted_at(order_id) or created_at,
-                client_order_id=intent.intent_id,
-                order_type=intent.order_type,
-                time_in_force=intent.time_in_force,
-                layer=intent.layer,
-                tactical_lot_id=intent.tactical_lot_id,
+        cacheable = len(self.order_accepted_times) == len(self.active_orders)
+        if cacheable and self._planner_orders_cache_revision == self.order_book_revision:
+            active = self._planner_orders_cache
+        else:
+            active = tuple(
+                ActiveOrder(
+                    order_id=order_id,
+                    symbol=intent.symbol,
+                    position_side=intent.position_side,
+                    order_side=intent.order_side,
+                    quantity=remaining,
+                    price=intent.price,
+                    reduce_only=intent.reduce_only,
+                    bucket=intent.bucket,
+                    action=intent.action,
+                    created_at=self.order_accepted_at(order_id) or created_at,
+                    client_order_id=intent.intent_id,
+                    order_type=intent.order_type,
+                    time_in_force=intent.time_in_force,
+                    layer=intent.layer,
+                    tactical_lot_id=intent.tactical_lot_id,
+                )
+                for order_id, (intent, remaining) in sorted(self.active_orders.items())
             )
-            for order_id, (intent, remaining) in sorted(self.active_orders.items())
-        )
+            if cacheable:
+                self._planner_orders_cache = active
+                self._planner_orders_cache_revision = self.order_book_revision
+        equity, gross, _, _, _ = self.risk_scalars(mark)
+        available = equity - (gross / self.leverage) - self.active_order_margin()
         return WalletSnapshot(
             balance=self.balance,
-            equity=self.equity(mark),
-            available_balance=self.available_balance(mark),
+            equity=equity,
+            available_balance=available,
             long=self.long.immutable(),
             short=self.short.immutable(),
             active_orders=active,
             leverage=self.leverage,
         )
 
-    def observe_risk(self, mark: Decimal) -> None:
-        equity = self.equity(mark)
-        gross = self.gross_notional(mark)
+    def observe_risk_values(self, equity: Decimal, gross: Decimal) -> None:
+        """Merge already-computed risk scalars into running extrema."""
         self.gross_peak = max(self.gross_peak, gross)
         self.equity_peak = max(self.equity_peak, equity)
         if self.equity_peak > ZERO:
@@ -668,6 +866,16 @@ class CrossWallet:
                 self.max_drawdown,
                 (self.equity_peak - equity) / self.equity_peak,
             )
+
+    def observe_risk(self, mark: Decimal) -> None:
+        equity, gross, _, _, _ = self.risk_scalars(mark)
+        self.observe_risk_values(equity, gross)
+
+    def observe_risk_and_should_liquidate(self, mark: Decimal) -> bool:
+        """Observe risk and reuse the same scalar pass for liquidation."""
+        equity, gross, _, _, buffer = self.risk_scalars(mark)
+        self.observe_risk_values(equity, gross)
+        return not self.liquidated and gross > ZERO and buffer <= ZERO
 
     def merge_risk_metrics(
         self,
@@ -680,7 +888,22 @@ class CrossWallet:
         self.equity_peak = max(self.equity_peak, equity_peak)
         self.max_drawdown = max(self.max_drawdown, max_drawdown)
 
-    def snapshot(self, timestamp: datetime, mark: Decimal) -> SimulationSnapshot:
+    def release_transient_history(self, *, trusted_replay: bool = False) -> None:
+        """Release histories which are not needed after a committed replay step.
+
+        ``trusted_replay`` is only for the internally-generated deterministic
+        backtest stream.  Durable/live paths retain fill/liquidation ids forever to
+        preserve their idempotency boundary.
+        """
+        self.realized_by_fill.clear()
+        self.long.prune_closed_tactical_lots()
+        self.short.prune_closed_tactical_lots()
+        if trusted_replay:
+            self.processed_fill_ids.clear()
+            self.processed_liquidation_ids.clear()
+
+    def observe_state(self, timestamp: datetime, mark: Decimal) -> None:
+        """Update timeline/risk statistics without allocating a snapshot object."""
         timestamp = utc_aware(timestamp)
         if self.last_timestamp is not None and self.dual_leg_active:
             elapsed = Decimal(str((timestamp - self.last_timestamp).total_seconds()))
@@ -689,6 +912,17 @@ class CrossWallet:
         self.dual_leg_active = self.long.quantity > ZERO and self.short.quantity > ZERO
         self.last_timestamp = timestamp
         self.observe_risk(mark)
+
+    def snapshot(
+        self,
+        timestamp: datetime,
+        mark: Decimal,
+        *,
+        observe: bool = True,
+    ) -> SimulationSnapshot:
+        timestamp = utc_aware(timestamp)
+        if observe:
+            self.observe_state(timestamp, mark)
         return SimulationSnapshot(
             timestamp=timestamp,
             balance=self.balance,

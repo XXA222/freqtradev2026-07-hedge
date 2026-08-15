@@ -16,11 +16,11 @@ from freqtrade.hedge.contracts.types import IntentAction, PositionKey, PositionS
 @dataclass(frozen=True, slots=True)
 class PositionProjection:
     position_key: PositionKey
-    quantity: Decimal = Decimal("0")
-    average_entry_price: Decimal = Decimal("0")
-    realized_pnl: Decimal = Decimal("0")
-    fees: Decimal = Decimal("0")
-    funding: Decimal = Decimal("0")
+    quantity: Decimal = Decimal(0)
+    average_entry_price: Decimal = Decimal(0)
+    realized_pnl: Decimal = Decimal(0)
+    fees: Decimal = Decimal(0)
+    funding: Decimal = Decimal(0)
     version: int = 0
     updated_at: datetime = datetime.min.replace(tzinfo=UTC)
 
@@ -41,7 +41,7 @@ class PositionProjection:
                 realized += (fill.price - avg) * fill.quantity
             else:
                 realized += (avg - fill.price) * fill.quantity
-            next_avg = Decimal("0") if next_qty == 0 else avg
+            next_avg = Decimal(0) if next_qty == 0 else avg
         return replace(
             self,
             quantity=next_qty,
@@ -77,9 +77,9 @@ class InMemoryExecutionLedger:
         position_key: PositionKey,
         quantity: Decimal,
         average_entry_price: Decimal,
-        realized_pnl: Decimal = Decimal("0"),
-        fees: Decimal = Decimal("0"),
-        funding: Decimal = Decimal("0"),
+        realized_pnl: Decimal = Decimal(0),
+        fees: Decimal = Decimal(0),
+        funding: Decimal = Decimal(0),
         observed_at: datetime | None = None,
     ) -> PositionProjection:
         """Idempotently seed an adopted/live position before reduce-only fills.
@@ -98,7 +98,7 @@ class InMemoryExecutionLedger:
         candidate = PositionProjection(
             position_key=position_key,
             quantity=quantity,
-            average_entry_price=(Decimal("0") if quantity == 0 else average_entry_price),
+            average_entry_price=(Decimal(0) if quantity == 0 else average_entry_price),
             realized_pnl=realized_pnl,
             fees=fees,
             funding=funding,

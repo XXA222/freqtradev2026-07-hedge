@@ -42,12 +42,12 @@ def test_long_and_short_are_independent() -> None:
         "ETH/USDT:USDT",
         account_id="main",
         exchange="binance",
-    ) == Decimal("5")
+    ) == Decimal(5)
     assert book.net_amount(
         "ETH/USDT:USDT",
         account_id="main",
         exchange="binance",
-    ) == Decimal("1")
+    ) == Decimal(1)
 
 
 @pytest.mark.parametrize("tolerance", ["-1", "NaN", "Infinity"])

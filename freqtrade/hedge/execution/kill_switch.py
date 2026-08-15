@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from threading import RLock
 from typing import Any, Mapping, Protocol
 
+
+logger = logging.getLogger(__name__)
 
 class KillSwitchMode(StrEnum):
     RUNNING = "RUNNING"
@@ -125,7 +128,11 @@ class KillSwitch:
             try:
                 self._metrics.halt(active, snapshot.reason or "")
             except Exception:
-                pass
+                logger.exception(
+                    "Kill switch metric emission failed (halt=%s, reason=%s)",
+                    active,
+                    snapshot.reason or "",
+                )
         if self._audit is not None:
             try:
                 self._audit.emit(
@@ -138,4 +145,7 @@ class KillSwitch:
                     },
                 )
             except Exception:
-                pass
+                logger.exception(
+                    "Kill switch audit emission failed (mode=%s)",
+                    snapshot.mode.value,
+                )

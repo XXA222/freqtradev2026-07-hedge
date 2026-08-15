@@ -60,7 +60,7 @@ class MarketRules:
     quantity_step: Decimal = Decimal("0.001")
     price_tick: Decimal = Decimal("0.01")
     minimum_quantity: Decimal = Decimal("0.001")
-    minimum_notional: Decimal = Decimal("5")
+    minimum_notional: Decimal = Decimal(5)
 
     def __post_init__(self) -> None:
         for name in ("quantity_step", "price_tick", "minimum_quantity", "minimum_notional"):

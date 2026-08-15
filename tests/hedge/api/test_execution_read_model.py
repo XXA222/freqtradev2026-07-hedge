@@ -42,11 +42,11 @@ class BaseQuery:
     def risk(self, *, account_id: str):
         return RiskStatusSchema(
             account_id=account_id,
-            equity=Decimal("1000"),
-            gross_notional=Decimal("0"),
-            gross_exposure_ratio=Decimal("0"),
-            margin_utilization=Decimal("0"),
-            liquidation_buffer_ratio=Decimal("1"),
+            equity=Decimal(1000),
+            gross_notional=Decimal(0),
+            gross_exposure_ratio=Decimal(0),
+            margin_utilization=Decimal(0),
+            liquidation_buffer_ratio=Decimal(1),
         )
 
     def reconciliation(self, *, account_id: str):

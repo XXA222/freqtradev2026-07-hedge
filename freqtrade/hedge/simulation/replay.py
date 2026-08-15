@@ -31,7 +31,9 @@ from .exchange import (
     AccountEvent,
     AccountEventType,
     BarEvent,
+    FillEvent,
     FundingEvent,
+    LiquidationEvent,
     MarketRules,
     OrderAcceptedEvent,
     OrderCancelledEvent,
@@ -84,10 +86,10 @@ class EventReplayEngine(SimulationPort):
         *,
         initial_balance: Decimal,
         planner_config: PlannerConfig | None = None,
-        leverage: Decimal = Decimal("3"),
+        leverage: Decimal = Decimal(3),
         fee_rate: Decimal = Decimal("0.0004"),
-        long_signal: Decimal = Decimal("1"),
-        short_signal: Decimal = Decimal("1"),
+        long_signal: Decimal = Decimal(1),
+        short_signal: Decimal = Decimal(1),
         target_net_quantity: Decimal | None = None,
         market_rules: MarketRules | None = None,
         planner: StrategyPlanningPort | None = None,
@@ -207,13 +209,15 @@ class EventReplayEngine(SimulationPort):
         )
         self._counter = 0
         self._symbol: str | None = None
-        self._final_mark = Decimal("1")
+        self._final_mark = Decimal(1)
         self._last_event_key: tuple[datetime, int] | None = None
         self._processed_slots: set[tuple[str, datetime, str]] = set()
         self._last_target_net = ZERO
         self._last_net_gap = ZERO
         self._last_long_target = ZERO
         self._last_short_target = ZERO
+        self._effective_planner_config_key: tuple[Decimal, Decimal, Decimal, Decimal] | None = None
+        self._effective_planner_config = self.planner_config
 
     def _order_id(self, intent_id: str) -> str:
         self._counter += 1
@@ -234,7 +238,13 @@ class EventReplayEngine(SimulationPort):
                 f"({self._symbol!r} != {symbol!r})"
             )
 
-    def _plan(self, bar: BarEvent) -> tuple[StandardEvent, ...]:
+    def _plan(
+        self,
+        bar: BarEvent,
+        *,
+        emit_events: bool = True,
+        collect_diagnostics: bool = True,
+    ) -> tuple[StandardEvent, ...]:
         if self.wallet.liquidated:
             return ()
         rules = self.market_rules
@@ -250,7 +260,20 @@ class EventReplayEngine(SimulationPort):
             min_notional=rules.min_notional,
         )
         wallet_snapshot = self.wallet.planner_snapshot(bar.open, bar.timestamp)
-        effective_config = planner_config_for_directive(self.planner_config, self.strategy_directive)
+        directive = self.strategy_directive
+        config_key = (
+            directive.confidence,
+            directive.risk_scale,
+            directive.long_exposure_scale,
+            directive.short_exposure_scale,
+        )
+        if config_key != self._effective_planner_config_key:
+            self._effective_planner_config = planner_config_for_directive(
+                self.planner_config,
+                directive,
+            )
+            self._effective_planner_config_key = config_key
+        effective_config = self._effective_planner_config
         effective_target = target_net_quantity_for_directive(
             directive=self.strategy_directive, base=self.planner_config,
             equity=wallet_snapshot.equity, mark_price=bar.open,
@@ -261,6 +284,7 @@ class EventReplayEngine(SimulationPort):
             long_signal=self.strategy_directive.long_score,
             short_signal=self.strategy_directive.short_score,
             target_net_quantity=effective_target,
+            collect_diagnostics=collect_diagnostics,
         )
         result = self.planner.plan(context)
         result, _ = apply_new_risk_gate(
@@ -276,20 +300,27 @@ class EventReplayEngine(SimulationPort):
         emitted: list[StandardEvent] = []
         for order_id in result.cancel_order_ids:
             self.wallet.cancel_order(order_id)
-            emitted.append(OrderCancelledEvent(timestamp=bar.timestamp, order_id=order_id))
+            if emit_events:
+                emitted.append(OrderCancelledEvent(timestamp=bar.timestamp, order_id=order_id))
         for intent in result.submit_orders:
             order_id = self._order_id(intent.intent_id)
             self.wallet.accept_order(order_id, intent, accepted_at=bar.timestamp)
-            emitted.append(
-                OrderAcceptedEvent(
-                    timestamp=bar.timestamp,
-                    order_id=order_id,
-                    intent=intent,
+            if emit_events:
+                emitted.append(
+                    OrderAcceptedEvent(
+                        timestamp=bar.timestamp,
+                        order_id=order_id,
+                        intent=intent,
+                    )
                 )
-            )
         return tuple(emitted)
 
     def _advance_states_after_fills(self, bar: BarEvent, fills) -> None:
+        # Without fills the position and active-layer state did not change.  The
+        # planner advances trailing state later in the same bar.  Liquidation is
+        # the only no-fill transition that still needs the flat-state reset below.
+        if not fills and not self.wallet.liquidated:
+            return
         touched_entries: dict[PositionSide, set[int]] = {
             PositionSide.LONG: set(),
             PositionSide.SHORT: set(),
@@ -599,6 +630,251 @@ class EventReplayEngine(SimulationPort):
             events=tuple(emitted),
             snapshots=tuple(snapshots),
             report=self._report(),
+        )
+
+    def replay_ordered_stream(  # noqa: C901
+        self,
+        events: Iterable[SimulationInputEvent],
+        *,
+        retain_material_events: bool = False,
+        snapshot_every_bars: int = 1440,
+        max_retained_snapshots: int = 2048,
+        compact_wallet_history: bool = True,
+    ) -> SimulationResult:
+        """Replay an already ordered trusted input stream with O(1) history memory.
+
+        This is the long-history/optimization fast path.  It intentionally avoids
+        the generic batch path's ``list(enumerate(...))``, sort, historical slot
+        set, per-input event ledger and per-bar snapshot allocation.  Matching,
+        planning, funding and liquidation semantics remain the same.
+
+        The producer must yield Signal -> Funding -> Bar order for identical
+        timestamps.  Duplicate validation is bounded to the current timestamp.
+        Durable/live replay continues to use ``replay``/``advance`` and therefore
+        retains its stronger historical idempotency state.
+        """
+        if snapshot_every_bars < 1:
+            raise ValueError("snapshot_every_bars must be positive")
+        if max_retained_snapshots < 2:
+            raise ValueError("max_retained_snapshots must be at least 2")
+
+        self._reset_runtime()
+        retained_events: list[StandardEvent] = []
+        retained_snapshots = []
+        input_event_count = 0
+        input_bar_count = 0
+        previous_key: tuple[datetime, int] | None = None
+        current_timestamp: datetime | None = None
+        current_slots: set[tuple[str, str]] = set()
+        sample_stride = snapshot_every_bars
+
+        for event in events:
+            input_event_count += 1
+            priority = self._event_priority(event)
+            key = (event.timestamp, priority)
+            if previous_key is not None and key < previous_key:
+                raise ValueError(
+                    "ordered simulation stream moved backwards in time or priority"
+                )
+            if current_timestamp != event.timestamp:
+                current_timestamp = event.timestamp
+                current_slots.clear()
+            slot = (self._input_slot(event)[0], event.symbol)
+            if slot in current_slots:
+                raise ValueError(
+                    f"duplicate standard event slot: {slot[0]} {event.symbol} "
+                    f"at {event.timestamp.isoformat()}"
+                )
+            current_slots.add(slot)
+            previous_key = key
+            self._last_event_key = key
+            self._assert_symbol(event.symbol)
+
+            if isinstance(event, SignalEvent):
+                self.long_signal = event.long_signal
+                self.short_signal = event.short_signal
+                self.target_net_quantity_override = event.target_net
+                self.strategy_directive = StrategyDirective(
+                    long_score=event.long_signal,
+                    short_score=event.short_signal,
+                    target_net_quantity=(
+                        None if event.target_net_ratio is not None else event.target_net
+                    ),
+                    target_net_ratio=event.target_net_ratio,
+                    confidence=event.confidence,
+                    risk_scale=event.risk_scale,
+                    long_exposure_scale=event.long_exposure_scale,
+                    short_exposure_scale=event.short_exposure_scale,
+                    allow_new_risk=event.allow_new_risk,
+                    regime=event.regime,
+                    reason=event.reason,
+                    model_version=event.model_version,
+                )
+                continue
+
+            if isinstance(event, FundingEvent):
+                self.funding.apply(self.wallet, event)
+                self._final_mark = event.mark_price
+                continue
+
+            input_bar_count += 1
+            if not self.wallet.liquidated:
+                outcome = self.matcher.match_outcome(event, self.wallet)
+                for fill in outcome.fills:
+                    self.wallet.apply_fill(fill)
+                    if retain_material_events:
+                        retained_events.append(fill)
+                if outcome.liquidation_event is not None:
+                    self.wallet.apply_liquidation(outcome.liquidation_event)
+                    if retain_material_events:
+                        retained_events.append(outcome.liquidation_event)
+                for order_id in outcome.expired_order_ids:
+                    if self.wallet.remaining(order_id) > 0:
+                        self.wallet.cancel_order(order_id)
+                self.wallet.merge_risk_metrics(
+                    gross_peak=outcome.gross_peak,
+                    equity_peak=outcome.equity_peak,
+                    max_drawdown=outcome.max_drawdown,
+                )
+                self._advance_states_after_fills(event, outcome.fills)
+            if not self.wallet.liquidated:
+                self._plan(
+                    event,
+                    emit_events=False,
+                    collect_diagnostics=False,
+                )
+            self._final_mark = event.close
+
+            # Update exact risk/dual-leg timeline state without allocating a
+            # SimulationSnapshot for every candle.
+            self.wallet.observe_state(event.timestamp, self._final_mark)
+            if input_bar_count == 1 or input_bar_count % sample_stride == 0:
+                retained_snapshots.append(
+                    self.wallet.snapshot(event.timestamp, self._final_mark, observe=False)
+                )
+                if len(retained_snapshots) >= max_retained_snapshots:
+                    retained_snapshots[:] = retained_snapshots[::2]
+                    sample_stride *= 2
+
+            if compact_wallet_history:
+                self.wallet.release_transient_history(trusted_replay=True)
+
+        if input_bar_count == 0:
+            raise ValueError("ordered replay requires at least one bar event")
+
+        # Always expose the final point without duplicating the latest sample.
+        final_snapshot = self.wallet.snapshot(
+            self.wallet.last_timestamp or current_timestamp,
+            self._final_mark,
+            observe=False,
+        )
+        if retained_snapshots and retained_snapshots[-1].timestamp == final_snapshot.timestamp:
+            retained_snapshots[-1] = final_snapshot
+        else:
+            retained_snapshots.append(final_snapshot)
+
+        report = dict(self._report())
+        report.update(
+            {
+                "replay_mode": "COMPACT_ORDERED_STREAM_V2",
+                "processed_chunk_count": 0,
+                "processed_input_event_count": input_event_count,
+                "processed_bar_count": input_bar_count,
+                "retained_event_count": len(retained_events),
+                "retained_snapshot_count": len(retained_snapshots),
+                "snapshot_stride_bars": sample_stride,
+                "max_chunk_input_events": 1,
+                "material_event_count": self.wallet.fill_count + self.wallet.liquidation_count,
+                "wallet_processed_fill_id_count": len(self.wallet.processed_fill_ids),
+                "wallet_realized_by_fill_count": len(self.wallet.realized_by_fill),
+                "wallet_tactical_lot_object_count": (
+                    len(self.wallet.long.tactical_lots) + len(self.wallet.short.tactical_lots)
+                ),
+            }
+        )
+        return SimulationResult(
+            events=tuple(retained_events),
+            snapshots=tuple(retained_snapshots),
+            report=report,
+        )
+
+    def replay_ordered_chunks(
+        self,
+        chunks: Iterable[Iterable[SimulationInputEvent]],
+        *,
+        retain_material_events: bool = True,
+        retain_chunk_snapshots: bool = True,
+    ) -> SimulationResult:
+        """Replay already-ordered bounded chunks without retaining the full input stream.
+
+        This path is intended for long historical backtests and optimization.  The
+        canonical ``replay``/``advance`` methods deliberately keep their original
+        all-events semantics for parity and recovery tests.  Each supplied chunk is
+        processed by the same deterministic matcher/planner implementation, then the
+        large per-candle input-event ledger is discarded before the next chunk.
+
+        Only fills and liquidations are retained by default because aggregate fees,
+        funding, PnL, drawdown, exposure and fill counters already live in the wallet
+        report.  One final snapshot per chunk is sufficient for a compact equity
+        series while the exact max drawdown remains tracked continuously by the
+        wallet itself.
+        """
+
+        retained_events: list[StandardEvent] = []
+        retained_snapshots = []
+        first_chunk = True
+        chunk_count = 0
+        input_event_count = 0
+        input_bar_count = 0
+        max_chunk_events = 0
+
+        for chunk in chunks:
+            chunk_events = tuple(chunk)
+            if not chunk_events:
+                continue
+            max_chunk_events = max(max_chunk_events, len(chunk_events))
+            input_event_count += len(chunk_events)
+            input_bar_count += sum(isinstance(event, BarEvent) for event in chunk_events)
+
+            partial = self._run(chunk_events, reset=first_chunk)
+            first_chunk = False
+            chunk_count += 1
+
+            if retain_material_events:
+                retained_events.extend(
+                    event
+                    for event in partial.events
+                    if isinstance(event, (FillEvent, LiquidationEvent))
+                )
+            if retain_chunk_snapshots and partial.snapshots:
+                retained_snapshots.append(partial.snapshots[-1])
+
+            # ``_run`` needs a slot set for duplicate detection inside a batch.
+            # Long historical streams are validated and ordered by the upstream
+            # chunk producer, so retaining every historical slot after the chunk
+            # has committed only creates O(n) memory growth with no additional
+            # protection.  Keep the monotonic ``_last_event_key`` instead.
+            self._processed_slots.clear()
+
+        if first_chunk:
+            raise ValueError("ordered replay requires at least one non-empty chunk")
+
+        report = dict(self._report())
+        report.update(
+            {
+                "replay_mode": "COMPACT_ORDERED_CHUNKS_V1",
+                "processed_chunk_count": chunk_count,
+                "processed_input_event_count": input_event_count,
+                "processed_bar_count": input_bar_count,
+                "retained_event_count": len(retained_events),
+                "retained_snapshot_count": len(retained_snapshots),
+                "max_chunk_input_events": max_chunk_events,
+            }
+        )
+        return SimulationResult(
+            events=tuple(retained_events),
+            snapshots=tuple(retained_snapshots),
+            report=report,
         )
 
     def replay(self, events: Iterable[SimulationInputEvent]) -> SimulationResult:

@@ -10,11 +10,11 @@ from freqtrade.hedge.integration.production_controller import ProductionHedgeCon
 def _legacy_signal() -> SimpleNamespace:
     close_time = datetime(2026, 8, 5, 12, 0, tzinfo=UTC)
     candle = SimpleNamespace(
-        open=Decimal("100"),
-        high=Decimal("102"),
-        low=Decimal("99"),
-        close=Decimal("101"),
-        volume=Decimal("10"),
+        open=Decimal(100),
+        high=Decimal(102),
+        low=Decimal(99),
+        close=Decimal(101),
+        volume=Decimal(10),
     )
     return SimpleNamespace(
         symbol="BTC/USDT:USDT",
@@ -35,10 +35,10 @@ def test_legacy_signal_decision_id_uses_conservative_defaults() -> None:
     extended = SimpleNamespace(
         **legacy.__dict__,
         target_net_ratio=None,
-        confidence=Decimal("1"),
-        risk_scale=Decimal("1"),
-        long_exposure_scale=Decimal("1"),
-        short_exposure_scale=Decimal("1"),
+        confidence=Decimal(1),
+        risk_scale=Decimal(1),
+        long_exposure_scale=Decimal(1),
+        short_exposure_scale=Decimal(1),
         allow_new_risk=True,
         regime="UNKNOWN",
         strategy_reason="LEGACY_SIGNAL",

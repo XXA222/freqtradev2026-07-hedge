@@ -233,7 +233,7 @@ class SoakMonitor:
     ) -> tuple[int, Decimal, int, int, int]:
         drifts = tuple(abs(item.unexplained_drift) for item in ordered)
         drift_count = sum(1 for value in drifts if value > self.drift_tolerance)
-        max_drift = max(drifts, default=Decimal("0"))
+        max_drift = max(drifts, default=Decimal(0))
         funding_count = sum(
             item.funding_event_count_delta
             if item.funding_event_count_delta > 0

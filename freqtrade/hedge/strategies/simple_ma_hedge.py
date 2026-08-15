@@ -14,8 +14,8 @@ from decimal import Decimal
 
 from freqtrade.hedge.simulation.exchange import BarEvent, SignalEvent, SimulationInputEvent
 
-ZERO = Decimal("0")
-ONE = Decimal("1")
+ZERO = Decimal(0)
+ONE = Decimal(1)
 
 
 def _bounded(value: Decimal) -> Decimal:
@@ -29,7 +29,7 @@ class SimpleDualLegMaConfig:
     fast_window: int = 5
     slow_window: int = 20
     base_signal: Decimal = Decimal("0.20")
-    sensitivity: Decimal = Decimal("18")
+    sensitivity: Decimal = Decimal(18)
 
     def __post_init__(self) -> None:
         if self.fast_window <= 0:

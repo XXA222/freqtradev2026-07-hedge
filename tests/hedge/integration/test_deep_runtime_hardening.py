@@ -94,7 +94,7 @@ def _bar(ts: datetime, close: str = "100") -> BarEvent:
         high=value + 2,
         low=value - 2,
         close=value,
-        volume=Decimal("1000"),
+        volume=Decimal(1000),
     )
 
 
@@ -109,7 +109,7 @@ def _market(ts: datetime, close: str = "100") -> MarketSnapshot:
         tick_size=Decimal("0.01"),
         qty_step=Decimal("0.001"),
         min_qty=Decimal("0.001"),
-        min_notional=Decimal("5"),
+        min_notional=Decimal(5),
     )
 
 
@@ -291,10 +291,10 @@ def test_fake_exchange_fill_id_is_exactly_once_and_fee_reaches_execution_ledger(
             symbol="ETHUSDT",
             position_side=PositionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key="r22-fee",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("100"),
+            limit_price=Decimal(100),
         )
     )
     first = runtime.exchange.fill_order(
@@ -372,7 +372,7 @@ def test_sql_fill_facts_rebuild_account_bucket_and_fees_without_checkpoint(tmp_p
                 quantity=Decimal("0.5"),
                 idempotency_key="sql-recovery-fill",
                 order_type=OrderType.LIMIT,
-                limit_price=Decimal("100"),
+                limit_price=Decimal(100),
                 metadata={"exchange": "paper", "bucket": "CORE", "layer": 0},
             )
         )
@@ -460,10 +460,10 @@ def test_checkpoint_active_order_preserves_last_fill_fee_metadata() -> None:
             symbol=PAIR,
             position_side=ExecutionSide.LONG,
             action=IntentAction.OPEN,
-            quantity=Decimal("1"),
+            quantity=Decimal(1),
             idempotency_key="checkpoint-fee-r22",
             order_type=OrderType.LIMIT,
-            limit_price=Decimal("100"),
+            limit_price=Decimal(100),
             metadata={"exchange": "paper", "bucket": "CORE"},
         )
     )
@@ -530,7 +530,7 @@ def test_sql_fill_recovery_reconciles_missing_fee_account_event(tmp_path) -> Non
         def recover(self):
             return PaperAccountEventRecovery(
                 event_ids=frozenset(),
-                funding_balance_delta=Decimal("0"),
+                funding_balance_delta=Decimal(0),
                 last_funding_event_time=None,
             )
 
@@ -559,7 +559,7 @@ def test_sql_fill_recovery_reconciles_missing_fee_account_event(tmp_path) -> Non
                 quantity=Decimal("0.5"),
                 idempotency_key="fee-gap-order",
                 order_type=OrderType.LIMIT,
-                limit_price=Decimal("100"),
+                limit_price=Decimal(100),
                 metadata={"exchange": "paper", "bucket": "CORE"},
             )
         )
@@ -685,7 +685,7 @@ def test_backtest_result_has_stable_semantic_fingerprint_and_atomic_hash(tmp_pat
         missing_candle_count=0,
         data_fingerprint="a" * 64,
     )
-    result = SimulationResult(events=(), snapshots=(), report={"equity": Decimal("1000")})
+    result = SimulationResult(events=(), snapshots=(), report={"equity": Decimal(1000)})
     first_path = tmp_path / "first.json"
     second_path = tmp_path / "second.json"
     first_artifact, first_semantic, first_native = _write_result(

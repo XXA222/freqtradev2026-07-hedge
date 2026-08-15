@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import timedelta
 
 from .close_grid import build_close_grid
@@ -22,11 +21,7 @@ def _with_state(
     side: PositionSide,
     state: StrategyLegState,
 ) -> PlanningContext:
-    return replace(
-        context,
-        long_state=state if side is PositionSide.LONG else context.long_state,
-        short_state=state if side is PositionSide.SHORT else context.short_state,
-    )
+    return context.with_state_trusted(side, state)
 
 
 def _cooldown_elapsed(
@@ -49,19 +44,25 @@ def plan_leg(
     target = calculate_target(context, side)
     state = update_trailing_state(context, side)
     effective = _with_state(context, side, state)
-    diagnostics: list[str] = [
-        f"{side.value}:target_gap:{target.quantity_gap}",
-        f"{side.value}:net_gap:{target.net_gap_quantity}",
-    ]
+    diagnostics: list[str] = (
+        [
+            f"{side.value}:target_gap:{target.quantity_gap}",
+            f"{side.value}:net_gap:{target.net_gap_quantity}",
+        ]
+        if context.collect_diagnostics
+        else []
+    )
 
     if not context.config.enabled(side):
-        return (), state, target, tuple(diagnostics + [f"{side.value}:disabled"])
+        if context.collect_diagnostics:
+            diagnostics.append(f"{side.value}:disabled")
+        return (), state, target, tuple(diagnostics)
 
     unstuck = build_unstuck_intent(effective, side, target)
     if unstuck is not None:
-        return (unstuck,), replace(state, sequence=state.sequence + 1), target, tuple(
-            diagnostics + [f"{side.value}:unstuck"]
-        )
+        if context.collect_diagnostics:
+            diagnostics.append(f"{side.value}:unstuck")
+        return (unstuck,), state.next_sequence(), target, tuple(diagnostics)
 
     orders = list(build_close_grid(effective, side, target))
     has_active_entry = any(
@@ -71,7 +72,8 @@ def plan_leg(
         for active in context.wallet.active_orders
     )
     if not _cooldown_elapsed(context, side, state):
-        diagnostics.append(f"{side.value}:entry_cooldown")
+        if context.collect_diagnostics:
+            diagnostics.append(f"{side.value}:entry_cooldown")
         if has_active_entry:
             orders.extend(
                 build_entry_grid(
@@ -84,7 +86,8 @@ def plan_leg(
     elif state.trailing_phase is TrailingPhase.CONFIRMED or context.wallet.leg(side).quantity == 0:
         orders.extend(build_entry_grid(effective, side, target))
     else:
-        diagnostics.append(f"{side.value}:trailing_{state.trailing_phase.value.lower()}")
+        if context.collect_diagnostics:
+            diagnostics.append(f"{side.value}:trailing_{state.trailing_phase.value.lower()}")
         if has_active_entry:
             orders.extend(
                 build_entry_grid(
@@ -95,5 +98,5 @@ def plan_leg(
                 )
             )
 
-    state = replace(state, sequence=state.sequence + 1)
+    state = state.next_sequence()
     return tuple(orders), state, target, tuple(diagnostics)

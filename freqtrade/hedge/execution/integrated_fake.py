@@ -97,7 +97,7 @@ def build_integrated_fake_runtime(
                 "strict integrated Paper runtime requires explicit dependencies: "
                 + ", ".join(missing)
             )
-    normalized_fee = Decimal("0") if fee_rate is None else Decimal(str(fee_rate))
+    normalized_fee = Decimal(0) if fee_rate is None else Decimal(str(fee_rate))
     account = FakeHedgeAccount(fee_rate=normalized_fee)
     exchange = PositionAwareFakeExchange(account)
     execution_store = store or InMemoryExecutionStore()

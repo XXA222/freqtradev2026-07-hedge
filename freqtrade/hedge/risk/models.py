@@ -49,15 +49,15 @@ class AccountRiskSnapshot:
     gross_long_notional: Decimal
     gross_short_notional: Decimal
     net_notional: Decimal
-    pending_order_notional: Decimal = Decimal("0")
-    liquidation_buffer_ratio: Decimal = Decimal("1")
+    pending_order_notional: Decimal = Decimal(0)
+    liquidation_buffer_ratio: Decimal = Decimal(1)
     risk_data_valid: bool = True
     observed_at_ms: int | None = None
-    pending_order_initial_margin: Decimal = Decimal("0")
-    pending_net_notional_delta: Decimal = Decimal("0")
-    pending_long_notional: Decimal = Decimal("0")
-    pending_short_notional: Decimal = Decimal("0")
-    pending_order_maintenance_margin: Decimal = Decimal("0")
+    pending_order_initial_margin: Decimal = Decimal(0)
+    pending_net_notional_delta: Decimal = Decimal(0)
+    pending_long_notional: Decimal = Decimal(0)
+    pending_short_notional: Decimal = Decimal(0)
+    pending_order_maintenance_margin: Decimal = Decimal(0)
     exchange: str = "binance"
     snapshot_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     source_version: int = 0
@@ -196,7 +196,7 @@ class AccountRiskSnapshot:
             self.pending_order_notional
             - self.pending_long_notional
             - self.pending_short_notional,
-            Decimal("0"),
+            Decimal(0),
         )
 
     @property
@@ -235,7 +235,7 @@ class AccountRiskSnapshot:
     @property
     def projected_maintenance_buffer_ratio(self) -> Decimal:
         projected = self.maintenance_margin + self.pending_order_maintenance_margin
-        return min(max((self.equity - projected) / self.equity, Decimal("0")), Decimal("1"))
+        return min(max((self.equity - projected) / self.equity, Decimal(0)), Decimal(1))
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -282,7 +282,7 @@ class PendingOrderRisk:
     action: PositionAction
     remaining_quantity: Decimal
     reference_price: Decimal
-    leverage: Decimal = Decimal("1")
+    leverage: Decimal = Decimal(1)
     maintenance_margin_rate: Decimal = Decimal("0.01")
 
     def __post_init__(self) -> None:
@@ -339,8 +339,8 @@ class PendingOrderRisk:
     @property
     def signed_net_notional_delta(self) -> Decimal:
         if not self.increases_risk:
-            return Decimal("0")
-        sign = Decimal("1") if self.position_side is PositionSide.LONG else Decimal("-1")
+            return Decimal(0)
+        sign = Decimal(1) if self.position_side is PositionSide.LONG else Decimal(-1)
         return sign * self.remaining_notional
 
     @property
@@ -356,13 +356,13 @@ class RiskRequest:
     action: PositionAction
     requested_quantity: Decimal
     reference_price: Decimal
-    current_leg_notional: Decimal = Decimal("0")
-    current_symbol_gross_notional: Decimal = Decimal("0")
-    pending_leg_increase_notional: Decimal = Decimal("0")
-    pending_symbol_increase_notional: Decimal = Decimal("0")
+    current_leg_notional: Decimal = Decimal(0)
+    current_symbol_gross_notional: Decimal = Decimal(0)
+    pending_leg_increase_notional: Decimal = Decimal(0)
+    pending_symbol_increase_notional: Decimal = Decimal(0)
     confirmed_quantity: Decimal | None = None
-    pending_reduce_quantity: Decimal = Decimal("0")
-    leverage: Decimal = Decimal("1")
+    pending_reduce_quantity: Decimal = Decimal(0)
+    leverage: Decimal = Decimal(1)
     exchange: str = "binance"
     intent_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     idempotency_key: str = field(default_factory=lambda: uuid.uuid4().hex)
@@ -465,7 +465,7 @@ class RiskRequest:
 
     @property
     def net_notional_sign(self) -> Decimal:
-        return Decimal("1") if self.position_side is PositionSide.LONG else Decimal("-1")
+        return Decimal(1) if self.position_side is PositionSide.LONG else Decimal(-1)
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -502,7 +502,7 @@ class RiskDecision:
     allowed: bool
     approved_quantity: Decimal
     reason_codes: tuple[str, ...]
-    approved_notional: Decimal = Decimal("0")
+    approved_notional: Decimal = Decimal(0)
     decision_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     risk_snapshot_id: str | None = None
     rules_version: str = "direction3-risk-v1.4"

@@ -36,13 +36,13 @@ def _market(timestamp: datetime, mark: str) -> MarketSnapshot:
     return MarketSnapshot(
         symbol="ETH/USDT:USDT",
         timestamp=timestamp,
-        bid=value - Decimal("1"),
-        ask=value + Decimal("1"),
+        bid=value - Decimal(1),
+        ask=value + Decimal(1),
         mark=value,
         tick_size=Decimal("0.01"),
         qty_step=Decimal("0.001"),
         min_qty=Decimal("0.001"),
-        min_notional=Decimal("5"),
+        min_notional=Decimal(5),
     )
 
 
@@ -54,7 +54,7 @@ def _bar(market: MarketSnapshot) -> BarEvent:
         high=market.ask,
         low=market.bid,
         close=market.mark,
-        volume=Decimal("100"),
+        volume=Decimal(100),
     )
 
 

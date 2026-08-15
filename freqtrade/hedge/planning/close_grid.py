@@ -59,9 +59,9 @@ def _price_for_average(
     base = average if average > ZERO else context.market.mark
     movement = context.config.take_profit_spacing * Decimal(max(layer, 1))
     raw = base * (
-        Decimal("1") + movement
+        Decimal(1) + movement
         if side is PositionSide.LONG
-        else Decimal("1") - movement
+        else Decimal(1) - movement
     )
     return _close_price(context, side, raw)
 

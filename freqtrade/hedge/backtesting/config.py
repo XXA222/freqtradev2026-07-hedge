@@ -187,6 +187,6 @@ def load_optimization_config(path: Path) -> dict[str, object]:
         "max_candidates": _strict_int(
             raw.get("max_candidates", 100_000), field="max_candidates", minimum=1
         ),
-        "workers": _strict_int(raw.get("workers", 1), field="workers", minimum=1),
+        "workers": _strict_int(raw.get("workers", 0), field="workers", minimum=-1),
         "walk_forward": walk_forward,
     }

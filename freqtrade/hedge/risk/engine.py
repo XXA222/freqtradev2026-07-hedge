@@ -35,9 +35,9 @@ class HedgeRiskEngine:
         if request.account_id != account.account_id:
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("ACCOUNT_ID_MISMATCH",),
-                Decimal("0"),
+                Decimal(0),
             )
         if request.action in {PositionAction.REDUCE, PositionAction.CLOSE}:
             return self._evaluate_reduce(request)
@@ -52,7 +52,7 @@ class HedgeRiskEngine:
         action: PositionAction | str,
         requested_quantity: Decimal,
         reference_price: Decimal,
-        leverage: Decimal = Decimal("1"),
+        leverage: Decimal = Decimal(1),
         maintenance_margin_rate: Decimal = Decimal("0.01"),
     ) -> RiskDecision:
         """Build and evaluate a request from a complete portfolio snapshot."""
@@ -77,13 +77,13 @@ class HedgeRiskEngine:
         account: AccountRiskSnapshot,
         symbol: str = "UNKNOWN",
         position_side: PositionSide | str | object = _LEGACY_POSITION_SIDE_UNSET,
-        current_leg_notional: Decimal = Decimal("0"),
-        current_symbol_gross_notional: Decimal = Decimal("0"),
-        pending_leg_increase_notional: Decimal = Decimal("0"),
-        pending_symbol_increase_notional: Decimal = Decimal("0"),
+        current_leg_notional: Decimal = Decimal(0),
+        current_symbol_gross_notional: Decimal = Decimal(0),
+        pending_leg_increase_notional: Decimal = Decimal(0),
+        pending_symbol_increase_notional: Decimal = Decimal(0),
         confirmed_quantity: Decimal | None = None,
-        pending_reduce_quantity: Decimal = Decimal("0"),
-        leverage: Decimal = Decimal("1"),
+        pending_reduce_quantity: Decimal = Decimal(0),
+        leverage: Decimal = Decimal(1),
         maintenance_margin_rate: Decimal = Decimal("0.01"),
     ) -> RiskDecision:
         """Compatibility entry point plus the direction-three fields."""
@@ -127,9 +127,9 @@ class HedgeRiskEngine:
         if request.confirmed_quantity is None:
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("CONFIRMED_POSITION_REQUIRED",),
-                Decimal("0"),
+                Decimal(0),
             )
         safe = calculate_safe_reduce(
             requested_quantity=request.requested_quantity,
@@ -139,7 +139,7 @@ class HedgeRiskEngine:
         approved = safe.allowed_quantity
         reason = safe.reason_code
         if approved <= 0:
-            return RiskDecision(False, Decimal("0"), (reason,), Decimal("0"))
+            return RiskDecision(False, Decimal(0), (reason,), Decimal(0))
         approved = min(approved, request.requested_quantity)
         return RiskDecision(
             True,
@@ -157,31 +157,31 @@ class HedgeRiskEngine:
             reasons = tuple(account.risk_data_errors) or ("RISK_DATA_INVALID",)
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 reasons,
-                Decimal("0"),
+                Decimal(0),
                 risk_snapshot_id=account.snapshot_id,
             )
         if account.liquidation_buffer_ratio < self._limits.min_liquidation_buffer_ratio:
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("LIQUIDATION_BUFFER_LOW",),
-                Decimal("0"),
+                Decimal(0),
                 risk_snapshot_id=account.snapshot_id,
             )
         if account.projected_maintenance_buffer_ratio < self._limits.min_liquidation_buffer_ratio:
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 ("PENDING_LIQUIDATION_BUFFER_LOW",),
-                Decimal("0"),
+                Decimal(0),
                 risk_snapshot_id=account.snapshot_id,
             )
 
         approved_notional = request.requested_notional
         reasons: list[str] = []
-        minimum_net_remediation = Decimal("0")
+        minimum_net_remediation = Decimal(0)
         net_remediation_reasons: list[str] = []
 
         def clip(capacity: Decimal, reason_code: str) -> None:
@@ -198,21 +198,21 @@ class HedgeRiskEngine:
             self._limits.max_margin_utilization * account.equity
             - account.initial_margin
             - account.pending_order_initial_margin,
-            Decimal("0"),
+            Decimal(0),
         )
         clip(margin_headroom * request.leverage, "MARGIN_UTILIZATION_CLIPPED")
 
         available_margin = max(
             account.available_balance - self._limits.min_available_balance,
-            Decimal("0"),
+            Decimal(0),
         )
         clip(available_margin * request.leverage, "AVAILABLE_MARGIN_CLIPPED")
 
         projected_maintenance_capacity = max(
-            account.equity * (Decimal("1") - self._limits.min_liquidation_buffer_ratio)
+            account.equity * (Decimal(1) - self._limits.min_liquidation_buffer_ratio)
             - account.maintenance_margin
             - account.pending_order_maintenance_margin,
-            Decimal("0"),
+            Decimal(0),
         )
         clip(
             projected_maintenance_capacity / request.maintenance_margin_rate,
@@ -223,7 +223,7 @@ class HedgeRiskEngine:
             clip(
                 max(
                     self._limits.max_pending_order_notional - account.pending_order_notional,
-                    Decimal("0"),
+                    Decimal(0),
                 ),
                 "PENDING_ORDER_NOTIONAL_CLIPPED",
             )
@@ -232,7 +232,7 @@ class HedgeRiskEngine:
                 max(
                     self._limits.max_pending_order_initial_margin
                     - account.pending_order_initial_margin,
-                    Decimal("0"),
+                    Decimal(0),
                 )
                 * request.leverage,
                 "PENDING_ORDER_MARGIN_CLIPPED",
@@ -244,7 +244,7 @@ class HedgeRiskEngine:
                     self._limits.max_leg_notional
                     - request.current_leg_notional
                     - request.pending_leg_increase_notional,
-                    Decimal("0"),
+                    Decimal(0),
                 ),
                 "LEG_NOTIONAL_CLIPPED",
             )
@@ -255,7 +255,7 @@ class HedgeRiskEngine:
                     self._limits.max_symbol_gross_notional
                     - request.current_symbol_gross_notional
                     - request.pending_symbol_increase_notional,
-                    Decimal("0"),
+                    Decimal(0),
                 ),
                 "SYMBOL_GROSS_NOTIONAL_CLIPPED",
             )
@@ -266,7 +266,7 @@ class HedgeRiskEngine:
                     self._limits.max_gross_notional
                     - account.gross_total_notional
                     - account.pending_order_notional,
-                    Decimal("0"),
+                    Decimal(0),
                 ),
                 "GROSS_NOTIONAL_CLIPPED",
             )
@@ -278,7 +278,7 @@ class HedgeRiskEngine:
                     ratio_notional_limit
                     - account.gross_total_notional
                     - account.pending_order_notional,
-                    Decimal("0"),
+                    Decimal(0),
                 ),
                 "GROSS_EXPOSURE_RATIO_CLIPPED",
             )
@@ -296,10 +296,10 @@ class HedgeRiskEngine:
             side_reason = "SHORT_NOTIONAL_CLIPPED"
             side_ratio_reason = "SHORT_EXPOSURE_RATIO_CLIPPED"
         if side_notional_limit is not None:
-            clip(max(side_notional_limit - side_current, Decimal("0")), side_reason)
+            clip(max(side_notional_limit - side_current, Decimal(0)), side_reason)
         if side_ratio_limit is not None:
             clip(
-                max(side_ratio_limit * account.equity - side_current, Decimal("0")),
+                max(side_ratio_limit * account.equity - side_current, Decimal(0)),
                 side_ratio_reason,
             )
 
@@ -311,8 +311,8 @@ class HedgeRiskEngine:
         ) -> None:
             nonlocal minimum_net_remediation
             signed_current = request.net_notional_sign * account.projected_net_notional
-            minimum_required = max(-limit - signed_current, Decimal("0"))
-            maximum_allowed = max(limit - signed_current, Decimal("0"))
+            minimum_required = max(-limit - signed_current, Decimal(0))
+            maximum_allowed = max(limit - signed_current, Decimal(0))
             minimum_net_remediation = max(minimum_net_remediation, minimum_required)
             if minimum_required > 0:
                 net_remediation_reasons.append(remediation_reason)
@@ -335,9 +335,9 @@ class HedgeRiskEngine:
         if approved_notional < minimum_net_remediation:
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 tuple(dict.fromkeys([*reasons, *net_remediation_reasons])),
-                Decimal("0"),
+                Decimal(0),
                 risk_snapshot_id=account.snapshot_id,
             )
 
@@ -346,9 +346,9 @@ class HedgeRiskEngine:
         if approved_quantity <= 0:
             return RiskDecision(
                 False,
-                Decimal("0"),
+                Decimal(0),
                 tuple(reasons or ["NO_RISK_CAPACITY"]),
-                Decimal("0"),
+                Decimal(0),
                 risk_snapshot_id=account.snapshot_id,
             )
         return RiskDecision(

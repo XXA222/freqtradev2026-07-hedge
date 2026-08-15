@@ -542,7 +542,7 @@ def build_matrix(root: Path, workspace_mode: bool) -> Matrix:
     m.add("package-windows", "Windows validation runs MLRL matrix", lambda: m.contains("scripts/Run-Freqtrade-Hedge-CleanMainline-Validation.ps1", "run_hedge_mlrl_validation.py"))
     m.add("package-windows", "Windows validation runs clean 200 matrix in workspace mode", lambda: _windows_matrix_uses_workspace_mode(root))
     m.add("package-windows", "config migration tool creates backup", lambda: m.contains("tools/migrate_clean_mainline_config.py", "pre-clean-mainline"))
-    m.add("package-windows", "clean version identifies v1.2.1", lambda: m.contains("CLEAN-MAINLINE-VERSION.txt", "v1.2.1"))
+    m.add("package-windows", "clean version identifies v1.7-risklevel-rl-dual-runtime", lambda: m.contains("CLEAN-MAINLINE-VERSION.txt", "v1.7-risklevel-rl-dual-runtime"))
 
     if len(m.rows) != 200:
         raise AssertionError(f"expected 200 checks, got {len(m.rows)}")

@@ -22,7 +22,7 @@ def _positive(value: object, fallback: Decimal) -> Decimal:
     return parsed if parsed.is_finite() and parsed > 0 else fallback
 
 
-def _nonnegative(value: object, fallback: Decimal = Decimal("0")) -> Decimal:
+def _nonnegative(value: object, fallback: Decimal = Decimal(0)) -> Decimal:
     try:
         parsed = Decimal(str(value))
     except (ArithmeticError, TypeError, ValueError):
@@ -32,7 +32,7 @@ def _nonnegative(value: object, fallback: Decimal = Decimal("0")) -> Decimal:
 
 def _precision_step(value: object, fallback: Decimal) -> Decimal:
     if isinstance(value, int) and not isinstance(value, bool):
-        return Decimal("1").scaleb(-value)
+        return Decimal(1).scaleb(-value)
     return _positive(value, fallback)
 
 
@@ -44,7 +44,7 @@ def build_production_market_snapshot(
     ticker: Mapping[str, Any] | None,
     fallback: Mapping[str, Any],
 ) -> MarketSnapshot:
-    mark = _positive(candle.close, Decimal("0"))
+    mark = _positive(candle.close, Decimal(0))
     if mark <= 0:
         raise RuntimeError("production candle close must be positive")
     ticker = ticker or {}

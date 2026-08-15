@@ -48,7 +48,7 @@ class PaperAccountViewProvider:
             else max(
                 wallet.long.average_price,
                 wallet.short.average_price,
-                Decimal("1"),
+                Decimal(1),
             )
         )
         symbol = raw_symbol(self.application.symbol)

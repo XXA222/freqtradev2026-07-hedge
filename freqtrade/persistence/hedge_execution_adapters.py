@@ -40,7 +40,11 @@ from freqtrade.hedge.execution.service import (
     OrderType,
     PositionSide as ExecutionPositionSide,
 )
-from freqtrade.hedge.execution.state_machine import OrderLifecycle, OrderState
+from freqtrade.hedge.execution.state_machine import (
+    TERMINAL_STATES,
+    OrderLifecycle,
+    OrderState,
+)
 from freqtrade.persistence.hedge_models import (
     ActionGroupRow,
     AuditEvent,
@@ -835,14 +839,57 @@ class SqlExecutionStore:
             )
             return bool(count)
 
-    def list_orders(self) -> Sequence[ExecutionOrder]:
-        with self._session_factory() as session:  # type: ignore[operator]
-            rows = session.scalars(
-                select(ExecutionOrderStateRow).order_by(
-                    ExecutionOrderStateRow.created_at,
-                    ExecutionOrderStateRow.client_order_id,
+    def list_orders(
+        self,
+        *,
+        account_id: str | None = None,
+        symbol: str | None = None,
+        position_side: ExecutionPositionSide | None = None,
+        statuses: Sequence[OrderState] | None = None,
+        action_group_id: UUID | None = None,
+        include_terminal: bool = True,
+        limit: int | None = None,
+        newest_first: bool = False,
+    ) -> Sequence[ExecutionOrder]:
+        stmt = select(ExecutionOrderStateRow)
+        if account_id is not None:
+            stmt = stmt.where(ExecutionOrderStateRow.account_id == account_id)
+        if symbol is not None:
+            stmt = stmt.where(ExecutionOrderStateRow.symbol == symbol)
+        if position_side is not None:
+            stmt = stmt.where(
+                ExecutionOrderStateRow.position_side == position_side.value
+            )
+        if statuses is not None:
+            stmt = stmt.where(
+                ExecutionOrderStateRow.lifecycle_status.in_(
+                    tuple(state.value for state in statuses)
                 )
-            ).all()
+            )
+        if action_group_id is not None:
+            stmt = stmt.where(
+                ExecutionOrderStateRow.action_group_id == str(action_group_id)
+            )
+        if not include_terminal:
+            stmt = stmt.where(
+                ExecutionOrderStateRow.lifecycle_status.notin_(
+                    tuple(state.value for state in TERMINAL_STATES)
+                )
+            )
+        if newest_first:
+            stmt = stmt.order_by(
+                ExecutionOrderStateRow.created_at.desc(),
+                ExecutionOrderStateRow.id.desc(),
+            )
+        else:
+            stmt = stmt.order_by(
+                ExecutionOrderStateRow.created_at,
+                ExecutionOrderStateRow.id,
+            )
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        with self._session_factory() as session:  # type: ignore[operator]
+            rows = session.scalars(stmt).all()
             return tuple(self._from_row(row) for row in rows)
 
 

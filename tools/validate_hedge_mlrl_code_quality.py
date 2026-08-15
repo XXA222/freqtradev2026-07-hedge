@@ -42,6 +42,7 @@ def iter_scope(source: Path) -> list[Path]:
     roots = (
         source / "freqtrade/freqai/hedge_rl",
         source / "freqtrade/freqai/prediction_models/HedgeReinforcementLearner.py",
+        source / "freqtrade/freqai/prediction_models/HedgeRiskLevelReinforcementLearner.py",
         source / "freqtrade/freqai/prediction_models/HedgePyTorchMultiTaskRegressor.py",
         source / "tests/hedge/mlrl",
         source / "tools/run_hedge_mlrl_validation.py",

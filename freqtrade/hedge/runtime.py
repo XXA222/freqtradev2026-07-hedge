@@ -389,14 +389,14 @@ class HedgeRuntime:
 
         return AccountRiskSnapshot(
             account_id=account_id,
-            equity=Decimal("1"),
-            wallet_balance=Decimal("0"),
-            available_balance=Decimal("0"),
-            initial_margin=Decimal("0"),
-            maintenance_margin=Decimal("0"),
-            gross_long_notional=Decimal("0"),
-            gross_short_notional=Decimal("0"),
-            net_notional=Decimal("0"),
+            equity=Decimal(1),
+            wallet_balance=Decimal(0),
+            available_balance=Decimal(0),
+            initial_margin=Decimal(0),
+            maintenance_margin=Decimal(0),
+            gross_long_notional=Decimal(0),
+            gross_short_notional=Decimal(0),
+            net_notional=Decimal(0),
             risk_data_valid=False,
-            liquidation_buffer_ratio=Decimal("0"),
+            liquidation_buffer_ratio=Decimal(0),
         )

@@ -43,7 +43,7 @@ class OrderRiskIntent:
     action: PositionAction
     requested_quantity: Decimal
     reference_price: Decimal
-    leverage: Decimal = Decimal("1")
+    leverage: Decimal = Decimal(1)
     intent_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     idempotency_key: str = field(default_factory=lambda: uuid.uuid4().hex)
     correlation_id: str = field(default_factory=lambda: uuid.uuid4().hex)

@@ -94,8 +94,8 @@ class HedgeRLRewardWeights:
     funding: Decimal = Decimal("0.25")
     fees: Decimal = Decimal("0.50")
     slippage: Decimal = Decimal("0.50")
-    drawdown: Decimal = Decimal("2")
-    liquidation: Decimal = Decimal("5")
+    drawdown: Decimal = Decimal(2)
+    liquidation: Decimal = Decimal(5)
     turnover: Decimal = Decimal("0.10")
     core_damage: Decimal = Decimal("0.50")
     invalid_action: Decimal = ONE

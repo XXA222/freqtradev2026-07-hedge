@@ -25,8 +25,8 @@ def test_frozen_contract_exports_remain_available() -> None:
     )
     assert key.symbol == "ETHUSDT"
     assert key.canonical_symbol == "ETH/USDT:USDT"
-    record = PositionRecord(key, Decimal("1"), Decimal("2000"), 1)
-    assert record.quantity == Decimal("1")
+    record = PositionRecord(key, Decimal(1), Decimal(2000), 1)
+    assert record.quantity == Decimal(1)
     assert ReadinessState.READY.value == "READY"
     assert HEDGE_CONTRACT_VERSION == "1.0.0"
     assert HEDGE_EVENT_VERSION == 1
@@ -57,7 +57,7 @@ def test_frozen_fill_event_constructor_remains_available() -> None:
         observed_time_ms=1001,
         order_id="order-1",
         quantity=Decimal("0.5"),
-        price=Decimal("2000"),
+        price=Decimal(2000),
     )
     assert event.order_id == "order-1"
     assert event.client_order_id == "order-1"

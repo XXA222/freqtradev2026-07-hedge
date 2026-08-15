@@ -544,8 +544,8 @@ class RiskApprovalCoordinator:
     def _deny(*reason_codes: str) -> UnifiedRiskApproval:
         return UnifiedRiskApproval(
             False,
-            Decimal("0"),
-            Decimal("0"),
+            Decimal(0),
+            Decimal(0),
             tuple(dict.fromkeys(reason_codes)) or ("RISK_APPROVAL_DENIED",),
         )
 
@@ -731,14 +731,14 @@ class RiskApprovalCoordinator:
             if lease is None:
                 return self._deny(writer_reason or "SINGLE_WRITER_LEASE_INVALID")
 
-            local_account = Decimal("0")
-            local_initial_margin = Decimal("0")
-            local_maintenance_margin = Decimal("0")
-            local_net_delta = Decimal("0")
-            local_symbol = Decimal("0")
-            local_leg = Decimal("0")
-            local_long = Decimal("0")
-            local_short = Decimal("0")
+            local_account = Decimal(0)
+            local_initial_margin = Decimal(0)
+            local_maintenance_margin = Decimal(0)
+            local_net_delta = Decimal(0)
+            local_symbol = Decimal(0)
+            local_leg = Decimal(0)
+            local_long = Decimal(0)
+            local_short = Decimal(0)
             for item in self._increase_reservations.values():
                 if item.account_id != request.account_id:
                     continue
@@ -760,7 +760,7 @@ class RiskApprovalCoordinator:
                 account,
                 available_balance=max(
                     account.available_balance - local_initial_margin,
-                    Decimal("0"),
+                    Decimal(0),
                 ),
                 pending_order_notional=account.pending_order_notional + local_account,
                 pending_order_initial_margin=(
@@ -894,7 +894,7 @@ class RiskApprovalCoordinator:
                     for item in self._increase_reservations.values()
                     if item.account_id == normalized_account
                 ),
-                Decimal("0"),
+                Decimal(0),
             )
 
     def release_all_reservations(self, *, account_id: str | None = None) -> int:

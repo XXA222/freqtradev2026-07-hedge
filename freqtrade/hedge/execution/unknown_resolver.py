@@ -292,7 +292,7 @@ class UnknownOrderResolver:
         if not unique:
             return None
 
-        raw_total = sum((item.filled_quantity for item in unique), Decimal("0"))
+        raw_total = sum((item.filled_quantity for item in unique), Decimal(0))
         total = min(raw_total, order.approved_quantity)
         if total <= 0:
             return None
@@ -305,7 +305,7 @@ class UnknownOrderResolver:
                     for item in unique
                     if item.average_price is not None
                 ),
-                Decimal("0"),
+                Decimal(0),
             )
             average = notional / raw_total
         status = (

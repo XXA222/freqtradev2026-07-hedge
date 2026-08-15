@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import pstdev
@@ -31,6 +32,9 @@ from .tensorboard import read_tensorboard_scalars
 from .walkforward import WalkForwardFold, build_walk_forward_folds, new_group_id
 from .workspace import ResearchWorkspace
 
+
+
+logger = logging.getLogger(__name__)
 
 class HedgeResearchService:
     """Fail-closed orchestration facade. It never submits exchange orders."""
@@ -183,7 +187,11 @@ class HedgeResearchService:
             try:
                 self.jobs.discard_queued(job.job_id)
             except (KeyError, ValueError):
-                pass
+                logger.warning(
+                    "Unable to discard failed queued research job %s",
+                    job.job_id,
+                    exc_info=True,
+                )
             raise
 
     def configure_executor(
@@ -822,7 +830,11 @@ class HedgeResearchService:
         try:
             self.attach_file(job_id, materialized.relative_path, media_type="application/json")
         except ValueError:
-            pass
+            logger.debug(
+                "Optimization replay overlay already attached to parent job %s",
+                job_id,
+                exc_info=True,
+            )
         parameters = dict(parent.request.parameters)
         for key in (
             "trials",
@@ -854,7 +866,11 @@ class HedgeResearchService:
         try:
             self.attach_file(child_id, materialized.relative_path, media_type="application/json")
         except ValueError:
-            pass
+            logger.debug(
+                "Optimization replay overlay already attached to child job %s",
+                child_id,
+                exc_info=True,
+            )
         self._append_optimization_replay(
             job_id,
             child_id=child_id,

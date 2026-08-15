@@ -279,7 +279,7 @@ def parse_optimization_config(
         ),
         seed=_integer(raw.get("seed"), field="hedge.optimization.seed", minimum=0, default=42),
         workers=_integer(
-            raw.get("workers"), field="hedge.optimization.workers", minimum=1, default=1
+            raw.get("workers"), field="hedge.optimization.workers", minimum=-1, default=0
         ),
         storage_path=storage,
         output_directory=output,

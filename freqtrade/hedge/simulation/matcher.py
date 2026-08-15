@@ -33,7 +33,7 @@ class MatchConfig:
     min_fill_notional: Decimal = ZERO
     max_entry_layers_per_bar: int = 1
     max_reduce_layers_per_bar: int = 1
-    max_fill_ratio_per_order: Decimal = Decimal("1")
+    max_fill_ratio_per_order: Decimal = Decimal(1)
     max_fills_per_bar: int = 0
 
     def __post_init__(self) -> None:
@@ -57,9 +57,9 @@ class MatchConfig:
             raise ValueError("matcher configuration must be finite")
         if self.maker_fee_rate < ZERO or self.taker_fee_rate < ZERO:
             raise ValueError("matcher fee rates cannot be negative")
-        if not ZERO <= self.volume_participation <= Decimal("1"):
+        if not ZERO <= self.volume_participation <= Decimal(1):
             raise ValueError("volume participation must be between zero and one")
-        if not ZERO <= self.market_slippage_bps < Decimal("10000"):
+        if not ZERO <= self.market_slippage_bps < Decimal(10000):
             raise ValueError("market slippage must be between zero and 10000 bps")
         if self.price_tick <= ZERO or self.qty_step <= ZERO:
             raise ValueError("matcher price and quantity steps must be positive")
@@ -67,7 +67,7 @@ class MatchConfig:
             raise ValueError("matcher minimum fills cannot be negative")
         if self.max_entry_layers_per_bar < 0 or self.max_reduce_layers_per_bar < 0:
             raise ValueError("per-bar layer limits cannot be negative")
-        if not ZERO < self.max_fill_ratio_per_order <= Decimal("1"):
+        if not ZERO < self.max_fill_ratio_per_order <= Decimal(1):
             raise ValueError("max fill ratio per order must be in (0, 1]")
         if self.max_fills_per_bar < 0:
             raise ValueError("max fills per bar cannot be negative")
@@ -114,11 +114,11 @@ def _market_price(
     reference: Decimal,
     config: MatchConfig,
 ) -> Decimal:
-    adjustment = config.market_slippage_bps / Decimal("10000")
+    adjustment = config.market_slippage_bps / Decimal(10000)
     raw = reference * (
-        Decimal("1") + adjustment
+        Decimal(1) + adjustment
         if intent.order_side is OrderSide.BUY
-        else Decimal("1") - adjustment
+        else Decimal(1) - adjustment
     )
     return (
         q_up(raw, config.price_tick)
@@ -176,9 +176,134 @@ class ConservativeMatcher:
 
     @staticmethod
     def _clone(wallet: CrossWallet) -> CrossWallet:
-        import copy
+        return wallet.clone_for_matcher()
 
-        return copy.deepcopy(wallet)
+    @staticmethod
+    def _risk_after_liquidation(
+        wallet: CrossWallet,
+        *,
+        event: LiquidationEvent,
+        gross_peak: Decimal,
+        equity_peak: Decimal,
+        max_drawdown: Decimal,
+    ) -> tuple[Decimal, Decimal, Decimal]:
+        ending_equity = wallet.balance + event.realized_pnl - event.fee
+        equity_peak = max(equity_peak, ending_equity)
+        if equity_peak > ZERO:
+            max_drawdown = max(
+                max_drawdown,
+                (equity_peak - ending_equity) / equity_peak,
+            )
+        return gross_peak, equity_peak, max_drawdown
+
+    def _no_order_path_outcome(
+        self,
+        bar: BarEvent,
+        wallet: CrossWallet,
+        path: tuple[Decimal, ...],
+    ) -> MatchOutcome:
+        """Evaluate an order-free bar without cloning the wallet.
+
+        With no active orders the only intrabar state transition possible is
+        liquidation.  Risk extrema can therefore be evaluated as local scalars,
+        preserving conservative path ordering without copying mutable account
+        state.
+        """
+        gross_peak = wallet.gross_peak
+        equity_peak = wallet.equity_peak
+        max_drawdown = wallet.max_drawdown
+
+        for price in path:
+            equity, gross, _, _, buffer = wallet.risk_scalars(price)
+            gross_peak = max(gross_peak, gross)
+            equity_peak = max(equity_peak, equity)
+            if equity_peak > ZERO:
+                max_drawdown = max(
+                    max_drawdown,
+                    (equity_peak - equity) / equity_peak,
+                )
+            if not wallet.liquidated and gross > ZERO and buffer <= ZERO:
+                event = wallet.create_liquidation_event(
+                    timestamp=bar.timestamp,
+                    symbol=bar.symbol,
+                    price=price,
+                    ordinal=0,
+                )
+                gross_peak, equity_peak, max_drawdown = self._risk_after_liquidation(
+                    wallet,
+                    event=event,
+                    gross_peak=gross_peak,
+                    equity_peak=equity_peak,
+                    max_drawdown=max_drawdown,
+                )
+                return MatchOutcome(
+                    fills=(),
+                    expired_order_ids=(),
+                    path=path,
+                    ending_equity=wallet.balance + event.realized_pnl - event.fee,
+                    gross_peak=gross_peak,
+                    equity_peak=equity_peak,
+                    max_drawdown=max_drawdown,
+                    liquidation_event=event,
+                )
+
+        return MatchOutcome(
+            fills=(),
+            expired_order_ids=(),
+            path=path,
+            ending_equity=wallet.equity(bar.close),
+            gross_peak=gross_peak,
+            equity_peak=equity_peak,
+            max_drawdown=max_drawdown,
+            liquidation_event=None,
+        )
+
+    def _no_order_outcome(self, bar: BarEvent, wallet: CrossWallet) -> MatchOutcome:
+        """Fast path for bars that cannot fill any order."""
+        paths = (
+            (bar.open, bar.high, bar.low, bar.close),
+            (bar.open, bar.low, bar.high, bar.close),
+        )
+        if (
+            wallet.long.quantity <= ZERO
+            and wallet.short.quantity <= ZERO
+            and not wallet.liquidated
+        ):
+            equity = wallet.balance
+            equity_peak = max(wallet.equity_peak, equity)
+            max_drawdown = wallet.max_drawdown
+            if equity_peak > ZERO:
+                max_drawdown = max(
+                    max_drawdown,
+                    (equity_peak - equity) / equity_peak,
+                )
+            # Both paths are equivalent in a flat wallet.  The legacy sort selected
+            # the lexicographically smaller path, normally O-L-H-C.
+            path = min(paths)
+            return MatchOutcome(
+                fills=(),
+                expired_order_ids=(),
+                path=path,
+                ending_equity=equity,
+                gross_peak=wallet.gross_peak,
+                equity_peak=equity_peak,
+                max_drawdown=max_drawdown,
+                liquidation_event=None,
+            )
+
+        candidates = [
+            self._no_order_path_outcome(bar, wallet, path)
+            for path in paths
+        ]
+        candidates.sort(
+            key=lambda item: (
+                item.ending_equity,
+                -item.max_drawdown,
+                len(item.fills),
+                item.path,
+            )
+        )
+        return candidates[0]
 
     def _fillable_quantity(
         self,
@@ -241,9 +366,9 @@ class ConservativeMatcher:
                 set(),
             ).add(intent.layer)
 
-        def liquidate_if_needed(price: Decimal) -> bool:
+        def observe_and_liquidate_if_needed(price: Decimal) -> bool:
             nonlocal liquidation_event, ordinal
-            if not shadow.should_liquidate(price):
+            if not shadow.observe_risk_and_should_liquidate(price):
                 return False
             liquidation_event = shadow.create_liquidation_event(
                 timestamp=bar.timestamp,
@@ -256,8 +381,7 @@ class ConservativeMatcher:
             ordinal += 1
             return True
 
-        shadow.observe_risk(path[0])
-        if liquidate_if_needed(path[0]):
+        if observe_and_liquidate_if_needed(path[0]):
             return MatchOutcome(
                 fills=(),
                 expired_order_ids=tuple(sorted(wallet.active_orders)),
@@ -270,7 +394,6 @@ class ConservativeMatcher:
             )
 
         for segment_index, (segment_start, segment_end) in enumerate(zip(path, path[1:])):
-            shadow.observe_risk(segment_start)
             candidates: list[tuple[Decimal, bool, str, _Trigger]] = []
             for order_id, (intent, remaining) in sorted(shadow.active_orders.items()):
                 if order_id in seen or remaining <= ZERO or not layer_allowed(intent):
@@ -354,11 +477,10 @@ class ConservativeMatcher:
                     )
                     shadow.apply_fill(fill)
                     record_layer(intent)
-                    shadow.observe_risk(trigger.price)
                     fills.append(fill)
                     ordinal += 1
                     volume_budget -= qty
-                    if liquidate_if_needed(trigger.price):
+                    if observe_and_liquidate_if_needed(trigger.price):
                         break
                 if (
                     intent.order_type is OrderType.MARKET
@@ -382,8 +504,7 @@ class ConservativeMatcher:
                         shadow.cancel_order(order_id)
                         expired.add(order_id)
                         seen.add(order_id)
-            shadow.observe_risk(segment_end)
-            if liquidate_if_needed(segment_end):
+            if observe_and_liquidate_if_needed(segment_end):
                 break
 
         return MatchOutcome(
@@ -397,7 +518,31 @@ class ConservativeMatcher:
             liquidation_event=liquidation_event,
         )
 
+    @staticmethod
+    def _bar_may_touch_active_order(bar: BarEvent, wallet: CrossWallet) -> bool:
+        """Cheap preflight before cloning/simulating conservative OHLC paths.
+
+        Limit orders can only execute when the bar range reaches their price.
+        MARKET and IOC orders must still enter the full matcher because IOC expiry
+        and taker/open semantics are path processing side effects.  This guard is
+        intentionally conservative: false means *provably no fill or expiry*.
+        """
+        for intent, remaining in wallet.active_orders.values():
+            if remaining <= ZERO:
+                continue
+            if intent.order_type is OrderType.MARKET or intent.time_in_force is TimeInForce.IOC:
+                return True
+            if intent.order_side is OrderSide.BUY:
+                if bar.low <= intent.price or bar.open <= intent.price:
+                    return True
+            elif bar.high >= intent.price or bar.open >= intent.price:
+                return True
+        return False
+
     def match_outcome(self, bar: BarEvent, wallet: CrossWallet) -> MatchOutcome:
+        if not wallet.active_orders or not self._bar_may_touch_active_order(bar, wallet):
+            return self._no_order_outcome(bar, wallet)
+
         paths = (
             (bar.open, bar.high, bar.low, bar.close),
             (bar.open, bar.low, bar.high, bar.close),

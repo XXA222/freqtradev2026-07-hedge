@@ -49,8 +49,8 @@ class QueryPort:
                     account_id=account_id,
                     symbol=symbol,
                     position_side="LONG",
-                    quantity=Decimal("1"),
-                    entry_price=Decimal("3000"),
+                    quantity=Decimal(1),
+                    entry_price=Decimal(3000),
                 ),
             ),
             as_of=datetime.now(UTC),
@@ -59,8 +59,8 @@ class QueryPort:
     def risk(self, *, account_id: str):
         return RiskStatusSchema(
             account_id=account_id,
-            equity=Decimal("1000"),
-            gross_notional=Decimal("100"),
+            equity=Decimal(1000),
+            gross_notional=Decimal(100),
             gross_exposure_ratio=Decimal("0.1"),
             margin_utilization=Decimal("0.05"),
             liquidation_buffer_ratio=Decimal("0.9"),
@@ -107,7 +107,7 @@ def test_position_schema_requires_aware_datetime() -> None:
 
 @pytest.mark.parametrize(
     ("quantity", "entry_price"),
-    [(Decimal("0"), Decimal("1")), (Decimal("1"), Decimal("0"))],
+    [(Decimal(0), Decimal(1)), (Decimal(1), Decimal(0))],
 )
 def test_position_schema_rejects_inconsistent_entry_price(
     quantity: Decimal,
@@ -128,8 +128,8 @@ def test_schema_normalizes_settled_symbol_and_rejects_mismatch() -> None:
         account_id="main",
         symbol="eth/usdt:usdt",
         position_side="LONG",
-        quantity=Decimal("1"),
-        entry_price=Decimal("3000"),
+        quantity=Decimal(1),
+        entry_price=Decimal(3000),
     )
     assert leg.symbol == "ETHUSDT"
     with pytest.raises(ValidationError):
@@ -137,8 +137,8 @@ def test_schema_normalizes_settled_symbol_and_rejects_mismatch() -> None:
             account_id="main",
             symbol="ETH/USDT:USDC",
             position_side="LONG",
-            quantity=Decimal("1"),
-            entry_price=Decimal("3000"),
+            quantity=Decimal(1),
+            entry_price=Decimal(3000),
         )
 
 

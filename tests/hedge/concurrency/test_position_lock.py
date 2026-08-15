@@ -25,8 +25,8 @@ def test_two_threads_cannot_over_reserve_confirmed_position() -> None:
                 account_id="main",
                 symbol="ETH/USDT:USDT",
                 position_side=PositionSide.LONG,
-                requested_quantity=Decimal("8"),
-                confirmed_quantity=Decimal("10"),
+                requested_quantity=Decimal(8),
+                confirmed_quantity=Decimal(10),
             )
         )
 
@@ -37,7 +37,7 @@ def test_two_threads_cannot_over_reserve_confirmed_position() -> None:
     for thread in threads:
         thread.join()
 
-    assert sum((item.allowed_quantity for item in reservations), Decimal("0")) == Decimal("10")
+    assert sum((item.allowed_quantity for item in reservations), Decimal(0)) == Decimal(10)
     for item in reservations:
         item.release()
 
@@ -121,10 +121,10 @@ def test_reduce_reservation_context_releases_on_normal_exit() -> None:
         account_id="main",
         symbol="ETH/USDT:USDT",
         position_side="LONG",
-        requested_quantity=Decimal("3"),
-        confirmed_quantity=Decimal("10"),
+        requested_quantity=Decimal(3),
+        confirmed_quantity=Decimal(10),
     ):
-        assert manager.pending_reduce_quantity(key) == Decimal("3")
+        assert manager.pending_reduce_quantity(key) == Decimal(3)
     assert manager.pending_reduce_quantity(key) == 0
 
 
@@ -140,8 +140,8 @@ def test_pre_reservation_check_runs_inside_position_lock() -> None:
             account_id="main",
             symbol="ETH/USDT:USDT",
             position_side="LONG",
-            requested_quantity=Decimal("3"),
-            confirmed_quantity=Decimal("10"),
+            requested_quantity=Decimal(3),
+            confirmed_quantity=Decimal(10),
             pre_reservation_check=reject,
         )
     assert manager.pending_reduce_quantity(key) == 0
@@ -158,20 +158,20 @@ def test_existing_pending_reduce_is_combined_with_local_reservations() -> None:
         account_id="main",
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.LONG,
-        requested_quantity=Decimal("7"),
-        confirmed_quantity=Decimal("10"),
-        existing_pending_reduce_quantity=Decimal("2"),
+        requested_quantity=Decimal(7),
+        confirmed_quantity=Decimal(10),
+        existing_pending_reduce_quantity=Decimal(2),
     )
     second = manager.reserve_reduce(
         account_id="main",
         symbol="ETH/USDT:USDT",
         position_side=PositionSide.LONG,
-        requested_quantity=Decimal("7"),
-        confirmed_quantity=Decimal("10"),
-        existing_pending_reduce_quantity=Decimal("2"),
+        requested_quantity=Decimal(7),
+        confirmed_quantity=Decimal(10),
+        existing_pending_reduce_quantity=Decimal(2),
     )
-    assert first.allowed_quantity == Decimal("7")
-    assert second.allowed_quantity == Decimal("1")
+    assert first.allowed_quantity == Decimal(7)
+    assert second.allowed_quantity == Decimal(1)
     first.release()
     second.release()
 
@@ -197,19 +197,19 @@ def test_position_reservation_identity_includes_exchange() -> None:
         account_id="main",
         symbol="ETH/USDT:USDT",
         position_side="LONG",
-        requested_quantity=Decimal("1"),
-        confirmed_quantity=Decimal("1"),
+        requested_quantity=Decimal(1),
+        confirmed_quantity=Decimal(1),
     )
     gateio = manager.reserve_reduce(
         exchange="gateio",
         account_id="main",
         symbol="ETH/USDT:USDT",
         position_side="LONG",
-        requested_quantity=Decimal("1"),
-        confirmed_quantity=Decimal("1"),
+        requested_quantity=Decimal(1),
+        confirmed_quantity=Decimal(1),
     )
-    assert binance.allowed_quantity == Decimal("1")
-    assert gateio.allowed_quantity == Decimal("1")
+    assert binance.allowed_quantity == Decimal(1)
+    assert gateio.allowed_quantity == Decimal(1)
     exchanges = {row["exchange"] for row in manager.reservation_snapshot()}
     assert exchanges == {"binance", "gateio"}
     binance.release()
