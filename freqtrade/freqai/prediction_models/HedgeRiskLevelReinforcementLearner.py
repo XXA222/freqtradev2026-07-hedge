@@ -72,6 +72,9 @@ class HedgeRiskLevelReinforcementLearner(ReinforcementLearner):
         self.hedge_cpu_controller = RiskRLAdaptiveCpuController.from_freqtrade_config(self.config)
         self.hedge_cpu_controller.apply_torch(th)
         self._hedge_train_rows = 0
+        self._hedge_train_bounds: tuple[str, str] | None = None
+        self._hedge_oos_rows = 0
+        self._hedge_oos_bounds: tuple[str, str] | None = None
         self._hedge_risk_context_provider: HedgeRiskContextProvider | None = None
 
     def set_hedge_context_provider(self, provider: HedgeRiskContextProvider | None) -> None:
@@ -178,11 +181,47 @@ class HedgeRiskLevelReinforcementLearner(ReinforcementLearner):
         dd["train_features"] = compact_training_dataframe(
             dd["train_features"], dtype=feature_dtype
         )
+        train_index = dd["train_features"].index
+        if len(prices_train) != len(dd["train_features"]) or not prices_train.index.equals(
+            train_index
+        ):
+            raise ValueError("Hedge RL train features/prices lost chronological index alignment")
+        if not train_index.is_monotonic_increasing or not train_index.is_unique:
+            raise ValueError("Hedge RL training index must be strictly chronological and unique")
         if isinstance(dd.get("test_features"), pd.DataFrame) and not dd["test_features"].empty:
             dd["test_features"] = compact_training_dataframe(
                 dd["test_features"], dtype=feature_dtype
             )
+            test_index = dd["test_features"].index
+            if len(prices_test) != len(dd["test_features"]) or not prices_test.index.equals(
+                test_index
+            ):
+                raise ValueError("Hedge RL OOS features/prices lost chronological index alignment")
+            if not test_index.is_monotonic_increasing or not test_index.is_unique:
+                raise ValueError("Hedge RL OOS index must be strictly chronological and unique")
+            try:
+                split_is_causal = bool(train_index[-1] < test_index[0])
+            except TypeError as exc:
+                raise ValueError(
+                    "Hedge RL train/OOS indexes are not chronologically comparable"
+                ) from exc
+            if not split_is_causal:
+                raise ValueError(
+                    "Hedge RL requires train_end < oos_start; shuffled splits are invalid"
+                )
+            self._hedge_oos_rows = len(dd["test_features"])
+            self._hedge_oos_bounds = (
+                str(test_index[0]),
+                str(test_index[-1]),
+            )
+        else:
+            self._hedge_oos_rows = 0
+            self._hedge_oos_bounds = None
         self._hedge_train_rows = len(dd["train_features"])
+        self._hedge_train_bounds = (
+            str(train_index[0]),
+            str(train_index[-1]),
+        )
         logger.info(
             "Training Hedge risk-level model on %s features, %s points, dtype=%s",
             len(dd["train_features"].columns),
@@ -248,26 +287,78 @@ class HedgeRiskLevelReinforcementLearner(ReinforcementLearner):
         if self.rl_config.get("progress_bar", False):
             progressbar_callback = ProgressBarCallback()
             callbacks.insert(0, progressbar_callback)
+        candidate = model
         try:
             model.learn(total_timesteps=int(total_timesteps), callback=callbacks)
+            best_model_path = Path(dk.data_path / "best_model.zip")
+            if best_model_path.is_file():
+                logger.info("Callback found a best Hedge risk-level model.")
+                candidate = self.MODELCLASS.load(dk.data_path / "best_model", device="cpu")
+            else:
+                logger.info("Couldn't find best model, using final Hedge risk-level model instead.")
+
+            from freqtrade.freqai.hedge_rl.risk_learning_audit import (
+                RiskLearningAuditThresholds,
+                audit_enabled,
+                audit_required,
+                run_risk_level_learning_audit_on_env,
+                write_risk_learning_audit,
+            )
+
+            if audit_enabled(self.config):
+                required = audit_required(self.config)
+                try:
+                    if self.eval_env is None or self._hedge_oos_rows <= 0:
+                        raise RuntimeError(
+                            "Risk-Level post-fit audit requires a non-empty chronological OOS split"
+                        )
+                    bounds = self._hedge_oos_bounds or ("", "")
+                    train_bounds = self._hedge_train_bounds or ("", "")
+                    audit = run_risk_level_learning_audit_on_env(
+                        model=candidate,
+                        env=self.eval_env,
+                        thresholds=RiskLearningAuditThresholds.from_freqtrade_config(self.config),
+                        metadata={
+                            "pair": dk.pair,
+                            "model_type": self.model_type,
+                            "training_rows": train_rows,
+                            "train_start": train_bounds[0],
+                            "train_end": train_bounds[1],
+                            "oos_rows": self._hedge_oos_rows,
+                            "oos_start": bounds[0],
+                            "oos_end": bounds[1],
+                            "automatic_post_fit_audit": True,
+                            "continual_learning": bool(self.continual_learning),
+                        },
+                    )
+                    audit_path = Path(dk.data_path / "risk-level-learning-audit.json")
+                    write_risk_learning_audit(audit, audit_path)
+                    logger.info(
+                        "Risk-Level OOS sizing audit status=%s path=%s",
+                        "PASS" if audit.passed else "FAIL",
+                        audit_path,
+                    )
+                    if required and not audit.passed:
+                        raise RuntimeError(
+                            "Risk-Level post-fit learning audit failed the required "
+                            "dynamic-sizing gate"
+                        )
+                except Exception:
+                    if required:
+                        raise
+                    logger.exception("Non-blocking Risk-Level post-fit learning audit failed")
         finally:
             if progressbar_callback:
                 progressbar_callback.on_training_end()
             if self.hedge_memory_config.release_training_envs_after_fit:
                 self._release_training_environments(model)
-            # Drop local callback references before GC/allocator trim; evaluation callbacks
-            # retain their environments even after those environments have been closed.
             callbacks.clear()
             adaptive_cpu_callback = None
             progressbar_callback = None
             if self.hedge_memory_config.release_phase_memory_after_fit:
                 release_rl_phase_memory()
 
-        if Path(dk.data_path / "best_model.zip").is_file():
-            logger.info("Callback found a best Hedge risk-level model.")
-            return self.MODELCLASS.load(dk.data_path / "best_model", device="cpu")
-        logger.info("Couldn't find best model, using final Hedge risk-level model instead.")
-        return model
+        return candidate
 
     def _release_training_environments(self, model: Any) -> None:
         """Close feature-owning environments and break the model->env retention chain."""

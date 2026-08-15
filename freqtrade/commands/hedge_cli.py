@@ -94,6 +94,18 @@ def _start_hedge_runtime_acceptance(args: dict[str, Any]) -> Any:
     return start_hedge_runtime_acceptance(args)
 
 
+def _start_hedge_risk_level_audit(args: dict[str, Any]) -> Any:
+    from freqtrade.commands.hedge_risk_learning_commands import start_hedge_risk_level_audit
+
+    return start_hedge_risk_level_audit(args)
+
+
+def _start_hedge_risk_walkforward_audit(args: dict[str, Any]) -> Any:
+    from freqtrade.commands.hedge_risk_learning_commands import start_hedge_risk_walkforward_audit
+
+    return start_hedge_risk_walkforward_audit(args)
+
+
 def _register_runtime_acceptance_command(
     subparsers: _SubParsersAction,
     common_parser: ArgumentParser,
@@ -348,5 +360,179 @@ def register_hedge_subcommands(  # noqa: C901
         )
         command.set_defaults(func=_start_hedge_research_validate)
         command.add_argument("--output", dest="hedge_research_output")
+
+    if "hedge-risk-level-audit" not in choices:
+        command = subparsers.add_parser(
+            "hedge-risk-level-audit",
+            help="Prove or reject learned Risk-Level RL dynamic position sizing on OOS data.",
+            parents=[common_parser],
+        )
+        command.set_defaults(func=_start_hedge_risk_level_audit)
+        command.add_argument("--features", dest="hedge_risk_audit_features", required=True)
+        command.add_argument("--prices", dest="hedge_risk_audit_prices", required=True)
+        command.add_argument("--model", dest="hedge_risk_audit_model", required=True)
+        command.add_argument(
+            "--model-type",
+            dest="hedge_risk_audit_model_type",
+            choices=("PPO", "A2C", "TRPO", "RecurrentPPO", "MaskablePPO"),
+            default="PPO",
+        )
+        command.add_argument("--index-column", dest="hedge_risk_audit_index_column")
+        command.add_argument("--train-start", dest="hedge_risk_audit_train_start")
+        command.add_argument("--train-end", dest="hedge_risk_audit_train_end")
+        command.add_argument("--output", dest="hedge_risk_audit_output", required=True)
+        command.add_argument(
+            "--drawdown-weight",
+            dest="hedge_risk_audit_drawdown_weight",
+            type=float,
+            default=1.0,
+        )
+        command.add_argument(
+            "--min-sizing-edge",
+            dest="hedge_risk_audit_min_sizing_edge",
+            type=float,
+            default=0.0005,
+        )
+        command.add_argument(
+            "--max-active-action-share",
+            dest="hedge_risk_audit_max_active_action_share",
+            type=float,
+            default=0.90,
+        )
+        command.add_argument(
+            "--min-distinct-levels",
+            dest="hedge_risk_audit_min_distinct_levels",
+            type=int,
+            default=3,
+        )
+        command.add_argument(
+            "--min-active-fraction",
+            dest="hedge_risk_audit_min_active_fraction",
+            type=float,
+            default=0.02,
+        )
+        command.add_argument(
+            "--min-nonzero-entropy",
+            dest="hedge_risk_audit_min_nonzero_entropy",
+            type=float,
+            default=0.20,
+        )
+        command.add_argument(
+            "--min-magnitude-change-fraction",
+            dest="hedge_risk_audit_min_magnitude_change_fraction",
+            type=float,
+            default=0.005,
+        )
+        command.add_argument(
+            "--shuffle-trials",
+            dest="hedge_risk_audit_shuffle_trials",
+            type=int,
+            default=8,
+        )
+        command.add_argument(
+            "--shuffle-quantile",
+            dest="hedge_risk_audit_shuffle_quantile",
+            type=float,
+            default=0.75,
+        )
+        command.add_argument(
+            "--permutation-trials",
+            dest="hedge_risk_audit_permutation_trials",
+            type=int,
+            default=23,
+        )
+        command.add_argument(
+            "--permutation-quantile",
+            dest="hedge_risk_audit_permutation_quantile",
+            type=float,
+            default=0.75,
+        )
+        command.add_argument(
+            "--max-permutation-exceedance",
+            dest="hedge_risk_audit_max_permutation_exceedance",
+            type=float,
+            default=0.25,
+        )
+        command.add_argument(
+            "--segment-count",
+            dest="hedge_risk_audit_segment_count",
+            type=int,
+            default=4,
+        )
+        command.add_argument(
+            "--min-segment-steps",
+            dest="hedge_risk_audit_min_segment_steps",
+            type=int,
+            default=128,
+        )
+        command.add_argument(
+            "--min-segments",
+            dest="hedge_risk_audit_min_segments",
+            type=int,
+            default=2,
+        )
+        command.add_argument(
+            "--min-segment-pass-ratio",
+            dest="hedge_risk_audit_min_segment_pass_ratio",
+            type=float,
+            default=0.50,
+        )
+        command.add_argument(
+            "--shuffle-seed",
+            dest="hedge_risk_audit_shuffle_seed",
+            type=int,
+            default=20260815,
+        )
+
+    if "hedge-risk-walkforward-audit" not in choices:
+        command = subparsers.add_parser(
+            "hedge-risk-walkforward-audit",
+            help="Aggregate sequential independently-trained Risk-Level OOS audits.",
+            parents=[common_parser],
+        )
+        command.set_defaults(func=_start_hedge_risk_walkforward_audit)
+        sources = command.add_mutually_exclusive_group(required=True)
+        sources.add_argument("--audit", dest="hedge_risk_wf_audits", action="append")
+        sources.add_argument("--audit-directory", dest="hedge_risk_wf_audit_directory")
+        command.add_argument("--output", dest="hedge_risk_wf_output", required=True)
+        command.add_argument(
+            "--min-folds", dest="hedge_risk_wf_min_folds", type=int, default=3
+        )
+        command.add_argument(
+            "--min-pass-ratio",
+            dest="hedge_risk_wf_min_pass_ratio",
+            type=float,
+            default=0.67,
+        )
+        command.add_argument(
+            "--min-positive-fixed-ratio",
+            dest="hedge_risk_wf_min_positive_fixed_ratio",
+            type=float,
+            default=0.67,
+        )
+        command.add_argument(
+            "--min-positive-permutation-ratio",
+            dest="hedge_risk_wf_min_positive_permutation_ratio",
+            type=float,
+            default=0.67,
+        )
+        command.add_argument(
+            "--min-distinct-model-ratio",
+            dest="hedge_risk_wf_min_distinct_model_ratio",
+            type=float,
+            default=1.0,
+        )
+        command.add_argument(
+            "--min-median-fixed-edge",
+            dest="hedge_risk_wf_min_median_fixed_edge",
+            type=float,
+            default=0.0,
+        )
+        command.add_argument(
+            "--min-median-permutation-edge",
+            dest="hedge_risk_wf_min_median_permutation_edge",
+            type=float,
+            default=0.0,
+        )
 
     _register_runtime_acceptance_command(subparsers, common_parser, choices)

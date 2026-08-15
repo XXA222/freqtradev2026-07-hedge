@@ -167,6 +167,9 @@ class HedgeRiskLevelEnv(gym.Env):
         self._episode_count = 0
         self._terminated = False
         self._truncated = False
+        self._episode_start_tick = self._start_tick
+        self._episode_end_tick = self._end_tick
+        self._episode_step_limit = self.env_config.max_episode_steps
         self.tensorboard_metrics: dict[str, dict[str, float]] = {
             "hedge_risk": {
                 "long_level": 0.0,
@@ -241,15 +244,44 @@ class HedgeRiskLevelEnv(gym.Env):
         if gc_every and self._episode_count > 1 and self._episode_count % gc_every == 0:
             # Episode boundary only; never in the per-candle step loop.
             release_rl_phase_memory(trim_allocator=False)
-        max_start = max(self._start_tick, self._end_tick - self.env_config.max_episode_steps)
-        if self.env_config.random_start and max_start > self._start_tick:
-            self._current_tick = int(self._rng.integers(self._start_tick, max_start + 1))
+
+        requested = dict(options or {})
+        explicit_start = requested.get("start_tick")
+        explicit_end = requested.get("end_tick")
+        explicit_limit = requested.get("max_episode_steps")
+
+        end_tick = self._end_tick if explicit_end is None else int(explicit_end)
+        if not self._start_tick < end_tick <= self._end_tick:
+            raise ValueError("audit end_tick must be within (_start_tick, _end_tick]")
+
+        if explicit_start is not None:
+            start_tick = int(explicit_start)
+            if not self._start_tick <= start_tick < end_tick:
+                raise ValueError(
+                    "audit start_tick must contain a full observation and precede end_tick"
+                )
         else:
-            self._current_tick = self._start_tick
+            default_limit = self.env_config.max_episode_steps
+            max_start = max(self._start_tick, end_tick - default_limit)
+            if self.env_config.random_start and max_start > self._start_tick:
+                start_tick = int(self._rng.integers(self._start_tick, max_start + 1))
+            else:
+                start_tick = self._start_tick
+
+        step_limit = (
+            self.env_config.max_episode_steps
+            if explicit_limit is None
+            else int(explicit_limit)
+        )
+        if step_limit < 1:
+            raise ValueError("max_episode_steps reset option must be positive")
+        self._episode_start_tick = start_tick
+        self._episode_end_tick = end_tick
+        self._episode_step_limit = min(step_limit, end_tick - start_tick)
+        self._current_tick = start_tick
         self._episode_steps = 0
         self._terminated = False
         self._truncated = False
-        # Reuse the simulator/reward objects instead of allocating a new object graph per episode.
         self.simulator.reset(self.env_config.starting_balance)
         self.reward_model.reset()
         info = self._info(requested=(0, 0), executed=(0, 0), reward_components=None)
@@ -269,6 +301,9 @@ class HedgeRiskLevelEnv(gym.Env):
         state = self.simulator.state
         return {
             "tick": tick,
+            "episode_start_tick": self._episode_start_tick,
+            "episode_end_tick": self._episode_end_tick,
+            "episode_step_limit": self._episode_step_limit,
             "requested_long_level": int(requested[0]),
             "requested_short_level": int(requested[1]),
             "executed_long_level": int(executed[0]),
@@ -330,8 +365,8 @@ class HedgeRiskLevelEnv(gym.Env):
             or reserve <= self.env_config.maintenance_margin_fraction
         )
         self._truncated = bool(
-            self._current_tick >= self._end_tick
-            or self._episode_steps >= self.env_config.max_episode_steps
+            self._current_tick >= self._episode_end_tick
+            or self._episode_steps >= self._episode_step_limit
         )
         reward_components = (
             breakdown.to_dict()

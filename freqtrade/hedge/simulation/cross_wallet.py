@@ -413,6 +413,11 @@ class CrossWallet:
     liquidation_buffer_warning_ratio: Decimal = Decimal("0.05")
     liquidated: bool = False
     liquidation_count: int = 0
+    equity_return_count: int = 0
+    equity_return_sum: Decimal = ZERO
+    equity_return_sum_squares: Decimal = ZERO
+    equity_downside_square_sum: Decimal = ZERO
+    last_observed_equity: Decimal | None = None
 
     def __post_init__(self) -> None:
         values = (
@@ -494,6 +499,11 @@ class CrossWallet:
         clone.liquidation_buffer_warning_ratio = self.liquidation_buffer_warning_ratio
         clone.liquidated = self.liquidated
         clone.liquidation_count = self.liquidation_count
+        clone.equity_return_count = self.equity_return_count
+        clone.equity_return_sum = self.equity_return_sum
+        clone.equity_return_sum_squares = self.equity_return_sum_squares
+        clone.equity_downside_square_sum = self.equity_downside_square_sum
+        clone.last_observed_equity = self.last_observed_equity
         return clone
 
     def leg(self, side: PositionSide) -> MutableLeg:
@@ -902,8 +912,20 @@ class CrossWallet:
             self.processed_fill_ids.clear()
             self.processed_liquidation_ids.clear()
 
+    def observe_equity_return(self, equity: Decimal) -> None:
+        """Accumulate exact per-bar simple-return moments in O(1) history memory."""
+        previous = self.last_observed_equity
+        if previous is not None and previous > ZERO and equity.is_finite():
+            value = equity / previous - Decimal(1)
+            self.equity_return_count += 1
+            self.equity_return_sum += value
+            self.equity_return_sum_squares += value * value
+            if value < ZERO:
+                self.equity_downside_square_sum += value * value
+        self.last_observed_equity = equity
+
     def observe_state(self, timestamp: datetime, mark: Decimal) -> None:
-        """Update timeline/risk statistics without allocating a snapshot object."""
+        """Update timeline/risk statistics without changing bar-return moments."""
         timestamp = utc_aware(timestamp)
         if self.last_timestamp is not None and self.dual_leg_active:
             elapsed = Decimal(str((timestamp - self.last_timestamp).total_seconds()))
@@ -911,7 +933,13 @@ class CrossWallet:
                 self.hedge_duration_seconds += elapsed
         self.dual_leg_active = self.long.quantity > ZERO and self.short.quantity > ZERO
         self.last_timestamp = timestamp
-        self.observe_risk(mark)
+        equity, gross, _, _, _ = self.risk_scalars(mark)
+        self.observe_risk_values(equity, gross)
+
+    def observe_bar_state(self, timestamp: datetime, mark: Decimal) -> None:
+        """Observe one canonical bar and accumulate exactly one return observation."""
+        self.observe_state(timestamp, mark)
+        self.observe_equity_return(self.equity(mark))
 
     def snapshot(
         self,

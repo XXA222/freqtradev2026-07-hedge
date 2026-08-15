@@ -84,6 +84,55 @@ def _risk_metrics(equity: Sequence[Decimal], periods_per_year: int) -> dict[str,
     }
 
 
+def _timeframe_periods_per_year(timeframe: str, fallback: int) -> int:
+    """Return annual observation count for a standard Freqtrade timeframe."""
+    value = str(timeframe).strip()
+    if len(value) < 2:
+        return int(fallback)
+    try:
+        amount = int(value[:-1])
+    except ValueError:
+        return int(fallback)
+    if amount <= 0:
+        return int(fallback)
+    seconds_by_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
+    seconds = seconds_by_unit.get(value[-1])
+    if seconds is None:
+        return int(fallback)
+    return max(1, round((365 * 24 * 60 * 60) / (amount * seconds)))
+
+
+def _positive_int(value: object, default: int = 1) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return int(default)
+    return parsed if parsed > 0 else int(default)
+
+
+def _risk_metrics_from_bar_moments(
+    report: object,
+    periods_per_year: int,
+) -> dict[str, float] | None:
+    """Use every compact-replay bar while retaining no per-bar equity array."""
+    count = _positive_int(_get(report, "equity_return_count", 0), default=0)
+    if count < 1:
+        return None
+    total = float(_number(_get(report, "equity_return_sum", ZERO)))
+    total_squares = float(_number(_get(report, "equity_return_sum_squares", ZERO)))
+    downside_squares = float(_number(_get(report, "equity_downside_square_sum", ZERO)))
+    mean = total / count
+    variance = max(0.0, total_squares / count - mean * mean)
+    volatility = sqrt(variance)
+    downside_deviation = sqrt(max(0.0, downside_squares / count))
+    scale = sqrt(max(int(periods_per_year), 1))
+    return {
+        "sharpe": 0.0 if volatility == 0 else mean / volatility * scale,
+        "sortino": 0.0 if downside_deviation == 0 else mean / downside_deviation * scale,
+        "volatility": volatility * scale,
+    }
+
+
 def _event_pnl(event: object) -> Decimal:
     for name in ("realized_pnl", "pnl", "profit_abs", "realized"):
         value = _get(event, name)
@@ -315,7 +364,21 @@ class HedgeBacktestResultAdapter:
         fees = _number(_get(report, "fees", _get(last, "fees", ZERO)))
         funding = _number(_get(report, "funding", _get(last, "funding", ZERO)))
         realized = _number(_get(last, "realized_pnl", sum(realized_values, ZERO)))
-        risk = _risk_metrics(equity, self.periods_per_year)
+        base_periods_per_year = _timeframe_periods_per_year(
+            str(timeframe), self.periods_per_year
+        )
+        snapshot_stride_bars = _positive_int(
+            _get(report, "snapshot_stride_bars", 1),
+            default=1,
+        )
+        risk = _risk_metrics_from_bar_moments(report, base_periods_per_year)
+        if risk is None:
+            risk_metric_source = "SNAPSHOT_RETURNS"
+            risk_periods_per_year = max(1, round(base_periods_per_year / snapshot_stride_bars))
+            risk = _risk_metrics(equity, risk_periods_per_year)
+        else:
+            risk_metric_source = "BAR_RETURN_MOMENTS"
+            risk_periods_per_year = base_periods_per_year
         metrics = HedgeBacktestMetrics(
             starting_balance=start,
             final_equity=final,
@@ -351,6 +414,9 @@ class HedgeBacktestResultAdapter:
                 "drawdown_end_index": drawdown_end,
                 "dual_leg_authority": True,
                 "ordinary_trade_rows_fabricated": False,
+                "risk_metric_source": risk_metric_source,
+                "risk_periods_per_year": risk_periods_per_year,
+                "snapshot_stride_bars": snapshot_stride_bars,
             }
         )
         return HedgeBacktestArtifact(

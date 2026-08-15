@@ -1,8 +1,8 @@
 {
   "schema": "freqtrade-hedge-clean-mainline-manifest-v1",
-  "version": "freqtrade-hedge-clean-mainline-v1.7-risklevel-rl-dual-runtime-audit-remed800-r2-20260815",
-  "file_count": 1445,
-  "total_bytes": 66015139,
+  "version": "freqtrade-hedge-clean-mainline-v1.7-final-closure-risklevel-wf-2y-r4.7-20260815",
+  "file_count": 1458,
+  "total_bytes": 66161655,
   "files": [
     {
       "path": ".coveragerc",
@@ -25,14 +25,24 @@
       "sha256": "34931536d828e5058900e370f5f51da6a6e53f0eabd613c5a19766f5b6e68d81"
     },
     {
+      "path": ".github/.devcontainer/devcontainer.json",
+      "size": 314,
+      "sha256": "6fdfd9f5ee915186b2fb59c8f4832d3769ed0167ab95407dfb48ed7103b7b9dc"
+    },
+    {
       "path": ".github/.devcontainer/Dockerfile",
       "size": 701,
       "sha256": "826c232d57675a5eb3aab0ed3cbb6dcbf35748c82e1b18ccd5a856de4be4db88"
     },
     {
-      "path": ".github/.devcontainer/devcontainer.json",
-      "size": 314,
-      "sha256": "6fdfd9f5ee915186b2fb59c8f4832d3769ed0167ab95407dfb48ed7103b7b9dc"
+      "path": ".github/actions/docker-tags/action.yml",
+      "size": 3251,
+      "sha256": "c37c4bae2bc6e41ac2bd30beb05fa419b56c9461ce7a3d79a65c6afd4c924fd2"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "size": 1525,
+      "sha256": "f40b4cd60a764e1bab4c504d508ad602ee18801380d812b402aa53662ac49944"
     },
     {
       "path": ".github/FUNDING.yml",
@@ -63,16 +73,6 @@
       "path": ".github/PULL_REQUEST_TEMPLATE.md",
       "size": 726,
       "sha256": "ef11b2795a07b3e285a35ad0a8103c52e894d323326375836a3b7be3c46149ef"
-    },
-    {
-      "path": ".github/actions/docker-tags/action.yml",
-      "size": 3251,
-      "sha256": "c37c4bae2bc6e41ac2bd30beb05fa419b56c9461ce7a3d79a65c6afd4c924fd2"
-    },
-    {
-      "path": ".github/dependabot.yml",
-      "size": 1525,
-      "sha256": "f40b4cd60a764e1bab4c504d508ad602ee18801380d812b402aa53662ac49944"
     },
     {
       "path": ".github/workflows/binance-lev-tier-update.yml",
@@ -150,46 +150,6 @@
       "sha256": "1a9b30765c93605cf1142d3d6ae67c07d0bcd20547a3187fac49e437266281df"
     },
     {
-      "path": "CLEAN-MAINLINE-ARCHITECTURE.md",
-      "size": 3227,
-      "sha256": "8c49cb5c0d999acee7e113a80de8bada8f1a5f1e58babf000e7ff2a96ba3ca23"
-    },
-    {
-      "path": "CLEAN-MAINLINE-MIGRATION-REPORT.md",
-      "size": 4736,
-      "sha256": "1756f2894a43024d846509c8c78488515cad8c7cadf5b5813ca1b7f46aad63b4"
-    },
-    {
-      "path": "CLEAN-MAINLINE-VERSION.txt",
-      "size": 89,
-      "sha256": "28109b220e2186e9f81fbc36ce461a7e63158402583f7c6e9deb1f49c2c7efc4"
-    },
-    {
-      "path": "CONTRIBUTING.md",
-      "size": 6093,
-      "sha256": "60ac82635ddbc7c55a9f075759379819988346fb75fc55419a33aa4dd603006b"
-    },
-    {
-      "path": "Dockerfile",
-      "size": 4137,
-      "sha256": "c8b08e1baea2ba6fa6bc4d3c1312b8a88d498101a04dcc7148e7f31c46c9e876"
-    },
-    {
-      "path": "LICENSE",
-      "size": 35141,
-      "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2"
-    },
-    {
-      "path": "MANIFEST.in",
-      "size": 360,
-      "sha256": "f377ae528cfcc02a8aa1caae65e8712e22f67f190d9f3ee53f347c1cd83dddad"
-    },
-    {
-      "path": "README.md",
-      "size": 13164,
-      "sha256": "0a83d1b15fa7cb38d62d59baeb7b1da34bacf5776cac7acbeb5cadb46653d6a7"
-    },
-    {
       "path": "build_helpers/binance_update_lev_tiers.py",
       "size": 653,
       "sha256": "c70e79fad4c7ead771b245f3e9483c909efe8094d3c2c9e8a734dfb8ca3740ad"
@@ -233,6 +193,21 @@
       "path": "build_helpers/ta_lib-0.7.1-cp311-cp311-manylinux2014_armv7l.manylinux_2_17_armv7l.manylinux_2_31_armv7l.whl",
       "size": 3841655,
       "sha256": "94582323120dc65bc8e7284910744d934c33da67e9a8cd6ccfebe5489f1a6f91"
+    },
+    {
+      "path": "CLEAN-MAINLINE-ARCHITECTURE.md",
+      "size": 3227,
+      "sha256": "8c49cb5c0d999acee7e113a80de8bada8f1a5f1e58babf000e7ff2a96ba3ca23"
+    },
+    {
+      "path": "CLEAN-MAINLINE-MIGRATION-REPORT.md",
+      "size": 4736,
+      "sha256": "1756f2894a43024d846509c8c78488515cad8c7cadf5b5813ca1b7f46aad63b4"
+    },
+    {
+      "path": "CLEAN-MAINLINE-VERSION.txt",
+      "size": 81,
+      "sha256": "4cc43fac07b17e01c02b60213ed2a7a0776f20d31beb37f0831d1f91ba8d87e8"
     },
     {
       "path": "config_examples/config_binance.example.json",
@@ -310,6 +285,21 @@
       "sha256": "d0a9fe6bea4b6179d9c873cc00151cbb85d30cfd8164146c1011b036f29cd778"
     },
     {
+      "path": "CONTRIBUTING.md",
+      "size": 6093,
+      "sha256": "60ac82635ddbc7c55a9f075759379819988346fb75fc55419a33aa4dd603006b"
+    },
+    {
+      "path": "docker/docker-compose-freqai.yml",
+      "size": 1142,
+      "sha256": "874c2f6f681472d96567216bacae4f86cb81a6ed0c37ab9908366ee57851f4d3"
+    },
+    {
+      "path": "docker/docker-compose-jupyter.yml",
+      "size": 393,
+      "sha256": "17dcb6fce629b6ca51fe5d057c928c05f85905f43c1bc6b4079d6a48facfec16"
+    },
+    {
       "path": "docker/Dockerfile.armhf",
       "size": 1664,
       "sha256": "1c331a870ee180180befc8c619c418af6d0c1165e1a3e852f38f7eda0102dcce"
@@ -340,16 +330,6 @@
       "sha256": "cd81f2a6f76efda254cefce0112c68ee1bc0099e1ed22ad85fd3ba63a6de6fe6"
     },
     {
-      "path": "docker/docker-compose-freqai.yml",
-      "size": 1142,
-      "sha256": "874c2f6f681472d96567216bacae4f86cb81a6ed0c37ab9908366ee57851f4d3"
-    },
-    {
-      "path": "docker/docker-compose-jupyter.yml",
-      "size": 393,
-      "sha256": "17dcb6fce629b6ca51fe5d057c928c05f85905f43c1bc6b4079d6a48facfec16"
-    },
-    {
       "path": "docker/entrypoint-hedge.sh",
       "size": 169,
       "sha256": "0990e7b1fd5a120433841f6169e68f650dc2ae52eee941e286bca45e6be3fe31"
@@ -358,6 +338,11 @@
       "path": "docker-compose.yml",
       "size": 770,
       "sha256": "bb55e90972c04702fb31adccdd9e179d3c69194fcce4351d966678360a2ca805"
+    },
+    {
+      "path": "Dockerfile",
+      "size": 4137,
+      "sha256": "c8b08e1baea2ba6fa6bc4d3c1312b8a88d498101a04dcc7148e7f31c46c9e876"
     },
     {
       "path": "docs/advanced-backtesting.md",
@@ -395,56 +380,6 @@
       "sha256": "3a10be8b620000c2162dacc207679f04e636d9857ab6acbaea6af218088c9b72"
     },
     {
-      "path": "docs/assets/freqUI-backtesting-dark.png",
-      "size": 95870,
-      "sha256": "6124278a4c5d4c36456353cd16610015722d88d9210fe1732e9b3a4795374ce3"
-    },
-    {
-      "path": "docs/assets/freqUI-backtesting-light.png",
-      "size": 93547,
-      "sha256": "567ffbd0877cca940354be6b4aa5935b07a6025401686734578abed2be6e0397"
-    },
-    {
-      "path": "docs/assets/freqUI-chart-annotations-dark.png",
-      "size": 114014,
-      "sha256": "522fede8fa1a66f1983e70d268500f95f4025507cc4ef888a91643ce20e46aaa"
-    },
-    {
-      "path": "docs/assets/freqUI-chart-annotations-light.png",
-      "size": 111368,
-      "sha256": "dc76a2e89175527b544825b14178942f1027caf25cfe2d462f87e6fd5f7a717b"
-    },
-    {
-      "path": "docs/assets/freqUI-plot-configurator-dark.png",
-      "size": 136452,
-      "sha256": "d53913e75a96b63397b19ae730973341b52fb9dd7dd9d21acd26c59c0f0a5e26"
-    },
-    {
-      "path": "docs/assets/freqUI-plot-configurator-light.png",
-      "size": 138302,
-      "sha256": "3de6f9ad52ac3ad9cfb9f39c237dc32b880dc89e21ae8b8a0fddf9bb05dbfbde"
-    },
-    {
-      "path": "docs/assets/freqUI-trade-pane-dark.png",
-      "size": 247689,
-      "sha256": "c7b64544b032a8ae5ba83addce38606d3106f04e14aed201f685ec606543f07b"
-    },
-    {
-      "path": "docs/assets/freqUI-trade-pane-light.png",
-      "size": 246690,
-      "sha256": "7ea4b9e6bf9d8de0ae8420535cafbe865051a1995f683eb26fcf0cd9a87c9bee"
-    },
-    {
-      "path": "docs/assets/freqUI-trade-pane.png",
-      "size": 213805,
-      "sha256": "bf644bd7bfecb96fa92367e712b9ecf8ba80d4747e2d5cea19cfd40fd7df1d11"
-    },
-    {
-      "path": "docs/assets/freqai_DI.jpg",
-      "size": 314012,
-      "sha256": "00563bb2f658f2dc7e21f4c9e384146329465f6041835bab2d0bd08f9b9b697f"
-    },
-    {
       "path": "docs/assets/freqai_algo.jpg",
       "size": 353611,
       "sha256": "cd1143d0e6c7ca2f09446ed896a6123b00817d69389dd27ffb077ac872cd1f6e"
@@ -458,6 +393,11 @@
       "path": "docs/assets/freqai_dbscan.jpg",
       "size": 67965,
       "sha256": "62bae1e8f09bc953195afd39af80fff7d8b16dd2cb9a669b760431583838f47f"
+    },
+    {
+      "path": "docs/assets/freqai_DI.jpg",
+      "size": 314012,
+      "sha256": "00563bb2f658f2dc7e21f4c9e384146329465f6041835bab2d0bd08f9b9b697f"
     },
     {
       "path": "docs/assets/freqai_doc_logo.svg",
@@ -495,6 +435,26 @@
       "sha256": "c7be79ef7efa91a5001ab76879d96027474795b75f0ebb82b49275b431412242"
     },
     {
+      "path": "docs/assets/freqUI-backtesting-dark.png",
+      "size": 95870,
+      "sha256": "6124278a4c5d4c36456353cd16610015722d88d9210fe1732e9b3a4795374ce3"
+    },
+    {
+      "path": "docs/assets/freqUI-backtesting-light.png",
+      "size": 93547,
+      "sha256": "567ffbd0877cca940354be6b4aa5935b07a6025401686734578abed2be6e0397"
+    },
+    {
+      "path": "docs/assets/freqUI-chart-annotations-dark.png",
+      "size": 114014,
+      "sha256": "522fede8fa1a66f1983e70d268500f95f4025507cc4ef888a91643ce20e46aaa"
+    },
+    {
+      "path": "docs/assets/freqUI-chart-annotations-light.png",
+      "size": 111368,
+      "sha256": "dc76a2e89175527b544825b14178942f1027caf25cfe2d462f87e6fd5f7a717b"
+    },
+    {
       "path": "docs/assets/frequi-login-CORS-light.png",
       "size": 52311,
       "sha256": "199d51fb335b61dde996c64b03dc1286d8f48c1789a16893bb09ad4555cd1f87"
@@ -505,6 +465,16 @@
       "sha256": "17e2109eed209d3bfe550ed97f92ad6503c7fd34a9f7d0f6ff161c10244fe5c6"
     },
     {
+      "path": "docs/assets/freqUI-plot-configurator-dark.png",
+      "size": 136452,
+      "sha256": "d53913e75a96b63397b19ae730973341b52fb9dd7dd9d21acd26c59c0f0a5e26"
+    },
+    {
+      "path": "docs/assets/freqUI-plot-configurator-light.png",
+      "size": 138302,
+      "sha256": "3de6f9ad52ac3ad9cfb9f39c237dc32b880dc89e21ae8b8a0fddf9bb05dbfbde"
+    },
+    {
       "path": "docs/assets/frequi-settings-dark.png",
       "size": 81767,
       "sha256": "6cbb7630e25f21a7c576783d5c04d737bb32faa1fbeaba847e1db0147871fba8"
@@ -513,6 +483,21 @@
       "path": "docs/assets/frequi-settings-light.png",
       "size": 80742,
       "sha256": "cf4d837d1327a20b86b62a5fd5ff5e780c3475346c5e46b11f162951d3205c0a"
+    },
+    {
+      "path": "docs/assets/freqUI-trade-pane-dark.png",
+      "size": 247689,
+      "sha256": "c7b64544b032a8ae5ba83addce38606d3106f04e14aed201f685ec606543f07b"
+    },
+    {
+      "path": "docs/assets/freqUI-trade-pane-light.png",
+      "size": 246690,
+      "sha256": "7ea4b9e6bf9d8de0ae8420535cafbe865051a1995f683eb26fcf0cd9a87c9bee"
+    },
+    {
+      "path": "docs/assets/freqUI-trade-pane.png",
+      "size": 213805,
+      "sha256": "bf644bd7bfecb96fa92367e712b9ecf8ba80d4747e2d5cea19cfd40fd7df1d11"
     },
     {
       "path": "docs/assets/frequi_url.png",
@@ -1121,8 +1106,8 @@
     },
     {
       "path": "freqtrade/commands/hedge_cli.py",
-      "size": 14206,
-      "sha256": "67682def956a4e00a6a6935becf61da06a0b8a74c056c27df5a07d0a0afed86b"
+      "size": 21332,
+      "sha256": "ed71945ad8fd79f78838d3d11ca2b8821a7618280a686e6066a5391b7ca65c7e"
     },
     {
       "path": "freqtrade/commands/hedge_db_commands.py",
@@ -1143,6 +1128,11 @@
       "path": "freqtrade/commands/hedge_research_commands.py",
       "size": 3027,
       "sha256": "4cf979742f403f72db8e9f9344acc357fc67387c9266d1c617041a36622bd983"
+    },
+    {
+      "path": "freqtrade/commands/hedge_risk_learning_commands.py",
+      "size": 10907,
+      "sha256": "f97060b2b15743f213bbe1b0e982bc7dc54f450cf62a0e017fbd13255057ea35"
     },
     {
       "path": "freqtrade/commands/hedge_runtime_commands.py",
@@ -1610,36 +1600,6 @@
       "sha256": "07dd7e4e813132649a09a90fe177f5520028995e9b4139128465b051d9477ac8"
     },
     {
-      "path": "freqtrade/freqai/RL/Base3ActionRLEnv.py",
-      "size": 4691,
-      "sha256": "8106ab74edbf7d571182de48802f17adfd14d270a454e93e35ba0a30e4ff748f"
-    },
-    {
-      "path": "freqtrade/freqai/RL/Base4ActionRLEnv.py",
-      "size": 5121,
-      "sha256": "bbefcef635851193d5873e217a110b9199a761b90cab2d5aa8a880ba3e26eb40"
-    },
-    {
-      "path": "freqtrade/freqai/RL/Base5ActionRLEnv.py",
-      "size": 5720,
-      "sha256": "18954ff102b7b2cc1289294dc8b3596d08cd4220460719a4320dcc7eec91a35c"
-    },
-    {
-      "path": "freqtrade/freqai/RL/BaseEnvironment.py",
-      "size": 15330,
-      "sha256": "4a2555009b38b5fa95883ca66ade26407f2d7c90e0d03ae914d572d5ea0cd2df"
-    },
-    {
-      "path": "freqtrade/freqai/RL/BaseReinforcementLearningModel.py",
-      "size": 20824,
-      "sha256": "a0ac6dd22f6350f192876da6e8373ade74a7ccae794644a9501f441a11da3852"
-    },
-    {
-      "path": "freqtrade/freqai/RL/__init__.py",
-      "size": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
       "path": "freqtrade/freqai/__init__.py",
       "size": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -1841,13 +1801,18 @@
     },
     {
       "path": "freqtrade/freqai/hedge_rl/risk_environment.py",
-      "size": 16713,
-      "sha256": "eba3b94a84d794f4baa8adb6bf5052417b05d3c7c10655e20eeb0a9a439c7e61"
+      "size": 18605,
+      "sha256": "3d9eb97097885bf1bd26918e765750e312f3cf8ed062baeb3db5ad96fe737149"
     },
     {
       "path": "freqtrade/freqai/hedge_rl/risk_gym.py",
       "size": 1574,
       "sha256": "ff10d9cebfb52a03ffb964916e5541dce338484d18bccb556c734e84fb2e2a14"
+    },
+    {
+      "path": "freqtrade/freqai/hedge_rl/risk_learning_audit.py",
+      "size": 42895,
+      "sha256": "91a0b13f82d43a70004ec34e4eb6eb0ceb42f195c13d8ea0b52ff8550da5522f"
     },
     {
       "path": "freqtrade/freqai/hedge_rl/risk_levels.py",
@@ -1890,6 +1855,11 @@
       "sha256": "e78ae1bd727f233cc7ce870a5fcfaf77c6b35eb0f50835ddd74df0ccab4e5b27"
     },
     {
+      "path": "freqtrade/freqai/hedge_rl/risk_walkforward_audit.py",
+      "size": 10561,
+      "sha256": "423ab66975fa26d0df2ca5b9403ef4e0b0bdabda0adfea72d90962a6ba6c1622"
+    },
+    {
       "path": "freqtrade/freqai/hedge_rl/state.py",
       "size": 5027,
       "sha256": "238d9ec4b1e52ee37d7659d8e009073150b718103ce9d9402dad9f3e82d7f6d5"
@@ -1915,6 +1885,11 @@
       "sha256": "b216851873af540881326dc313c280aecad3b62514006611388623981a87d14d"
     },
     {
+      "path": "freqtrade/freqai/prediction_models/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
       "path": "freqtrade/freqai/prediction_models/HedgePyTorchMultiTaskRegressor.py",
       "size": 3801,
       "sha256": "55397d7d7f434ab6909fe484960eeeb7377d9e2023e86b4debfb7b9e38b265af"
@@ -1926,8 +1901,8 @@
     },
     {
       "path": "freqtrade/freqai/prediction_models/HedgeRiskLevelReinforcementLearner.py",
-      "size": 15250,
-      "sha256": "128b909afe0b4dd8aa710e1f7e43cab8e4b90f88c53a224df50aa3fffbd2a289"
+      "size": 20088,
+      "sha256": "9a4bb6c7bb55a990ae6534273ea98132ba56497ca90d408b53fc7fe1a4baaf96"
     },
     {
       "path": "freqtrade/freqai/prediction_models/LightGBMClassifier.py",
@@ -1985,16 +1960,6 @@
       "sha256": "dfe539a3db5aed6124f3fb41c5db33dd4771e5e63ebc21f50ddcf177c70287d8"
     },
     {
-      "path": "freqtrade/freqai/prediction_models/XGBoostRFClassifier.py",
-      "size": 3322,
-      "sha256": "ece1f9359c079896a3be552021623a38c5acdc4f0d880504bcb0af4d4325e36c"
-    },
-    {
-      "path": "freqtrade/freqai/prediction_models/XGBoostRFRegressor.py",
-      "size": 2330,
-      "sha256": "1ceea2a9eb714599bebdcae2b91e48c11ab7dc4240625c186af07597d9876a08"
-    },
-    {
       "path": "freqtrade/freqai/prediction_models/XGBoostRegressor.py",
       "size": 2169,
       "sha256": "c247d7809eddb9a74094dfad4cdd67cd4e8df516dafb29602290b2ce8c977423"
@@ -2005,14 +1970,44 @@
       "sha256": "ca56e5b0035e11d3d5a118874c10e918fa19acaa055765b42b7472ec3162054f"
     },
     {
-      "path": "freqtrade/freqai/prediction_models/__init__.py",
+      "path": "freqtrade/freqai/prediction_models/XGBoostRFClassifier.py",
+      "size": 3322,
+      "sha256": "ece1f9359c079896a3be552021623a38c5acdc4f0d880504bcb0af4d4325e36c"
+    },
+    {
+      "path": "freqtrade/freqai/prediction_models/XGBoostRFRegressor.py",
+      "size": 2330,
+      "sha256": "1ceea2a9eb714599bebdcae2b91e48c11ab7dc4240625c186af07597d9876a08"
+    },
+    {
+      "path": "freqtrade/freqai/RL/__init__.py",
       "size": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
-      "path": "freqtrade/freqai/tensorboard/TensorboardCallback.py",
-      "size": 2127,
-      "sha256": "beb925b6548d339d24eb5043f803c0460473ebd42e0ef84a36478c2c46055be0"
+      "path": "freqtrade/freqai/RL/Base3ActionRLEnv.py",
+      "size": 4691,
+      "sha256": "8106ab74edbf7d571182de48802f17adfd14d270a454e93e35ba0a30e4ff748f"
+    },
+    {
+      "path": "freqtrade/freqai/RL/Base4ActionRLEnv.py",
+      "size": 5121,
+      "sha256": "bbefcef635851193d5873e217a110b9199a761b90cab2d5aa8a880ba3e26eb40"
+    },
+    {
+      "path": "freqtrade/freqai/RL/Base5ActionRLEnv.py",
+      "size": 5720,
+      "sha256": "18954ff102b7b2cc1289294dc8b3596d08cd4220460719a4320dcc7eec91a35c"
+    },
+    {
+      "path": "freqtrade/freqai/RL/BaseEnvironment.py",
+      "size": 15330,
+      "sha256": "4a2555009b38b5fa95883ca66ade26407f2d7c90e0d03ae914d572d5ea0cd2df"
+    },
+    {
+      "path": "freqtrade/freqai/RL/BaseReinforcementLearningModel.py",
+      "size": 20824,
+      "sha256": "a0ac6dd22f6350f192876da6e8373ade74a7ccae794644a9501f441a11da3852"
     },
     {
       "path": "freqtrade/freqai/tensorboard/__init__.py",
@@ -2033,6 +2028,21 @@
       "path": "freqtrade/freqai/tensorboard/tensorboard.py",
       "size": 1826,
       "sha256": "e703cb584d9f8b252bc9bcd54a66dc0e482fec5098834d5f2df31df71333e840"
+    },
+    {
+      "path": "freqtrade/freqai/tensorboard/TensorboardCallback.py",
+      "size": 2127,
+      "sha256": "beb925b6548d339d24eb5043f803c0460473ebd42e0ef84a36478c2c46055be0"
+    },
+    {
+      "path": "freqtrade/freqai/torch/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "freqtrade/freqai/torch/datasets.py",
+      "size": 668,
+      "sha256": "554abf95550c54ca621d611751b9bf3a6e18622bab2ed73381cb44fa11dc19f1"
     },
     {
       "path": "freqtrade/freqai/torch/PyTorchDataConvertor.py",
@@ -2058,16 +2068,6 @@
       "path": "freqtrade/freqai/torch/PyTorchTransformerModel.py",
       "size": 3677,
       "sha256": "5f48416bc14b6dc6d4e52fbdb49d382f6e172dabc29658375d97f18b730a0adc"
-    },
-    {
-      "path": "freqtrade/freqai/torch/__init__.py",
-      "size": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
-      "path": "freqtrade/freqai/torch/datasets.py",
-      "size": 668,
-      "sha256": "554abf95550c54ca621d611751b9bf3a6e18622bab2ed73381cb44fa11dc19f1"
     },
     {
       "path": "freqtrade/freqai/utils.py",
@@ -2245,6 +2245,11 @@
       "sha256": "3d3fd39bdfe81382325456198c0f8b7fd097df015315f761a4ecde577dcf3b69"
     },
     {
+      "path": "freqtrade/hedge/backtesting/consistency.py",
+      "size": 7336,
+      "sha256": "763a24a9eb792be6fde3db78ef3b3613346392a1b75719835f43ffdb69a27a9c"
+    },
+    {
       "path": "freqtrade/hedge/backtesting/contracts.py",
       "size": 6206,
       "sha256": "480fe7dc1c1dfe13bf293da8402cf5f53887c593f86c833ff1c747afeb9e7c62"
@@ -2411,13 +2416,8 @@
     },
     {
       "path": "freqtrade/hedge/config_schema_extension.py",
-      "size": 32179,
-      "sha256": "67c124b1f1a6736028d6d8f4830cc0289f347f856dffc99e95f0c5dd74d9d6b7"
-    },
-    {
-      "path": "freqtrade/hedge/contracts/CHANGE_POLICY.md",
-      "size": 324,
-      "sha256": "01c77193fd512249d1253c99abec5d9625d2de82449be0b0ee0213b923a8f8bd"
+      "size": 34524,
+      "sha256": "867342b2334ad37003ae02292644350e77d225a7820d56c1b65c8bab0bf193d0"
     },
     {
       "path": "freqtrade/hedge/contracts/__init__.py",
@@ -2428,6 +2428,11 @@
       "path": "freqtrade/hedge/contracts/adapters.py",
       "size": 6721,
       "sha256": "15b9fa944832f4eb163274bae9213158b83f148263ff3a60ee430628a54fadbb"
+    },
+    {
+      "path": "freqtrade/hedge/contracts/CHANGE_POLICY.md",
+      "size": 324,
+      "sha256": "01c77193fd512249d1253c99abec5d9625d2de82449be0b0ee0213b923a8f8bd"
     },
     {
       "path": "freqtrade/hedge/contracts/errors.py",
@@ -2921,8 +2926,8 @@
     },
     {
       "path": "freqtrade/hedge/native/backtest.py",
-      "size": 15517,
-      "sha256": "aa70b402568f117cccb92d40919c81f7b8cf14995d006fe44e37f5efd1886bd4"
+      "size": 18654,
+      "sha256": "b2dbf1e8e6fadf2501f7e9d4a72f56055a3c3bc94d752791be54563547bf2138"
     },
     {
       "path": "freqtrade/hedge/native/callbacks.py",
@@ -3586,8 +3591,8 @@
     },
     {
       "path": "freqtrade/hedge/simulation/cross_wallet.py",
-      "size": 38108,
-      "sha256": "3f0041684009432d71a49629f7bd8629af76b7944509d2b90ac48bb9be7b669c"
+      "size": 40563,
+      "sha256": "956b3eb9ff636061fe75a0343433ecf0467557ccab5022b0b2b7b0226d80052c"
     },
     {
       "path": "freqtrade/hedge/simulation/exchange.py",
@@ -3606,13 +3611,13 @@
     },
     {
       "path": "freqtrade/hedge/simulation/replay.py",
-      "size": 38728,
-      "sha256": "dc81c31c43288bca39cf657cac25be4f77b7dae3b6a8961bad7e0f7b4e503885"
+      "size": 40822,
+      "sha256": "ddec00ba348377be97b975594974d36c32fb5e685dbb5b1a14f74e42e7643727"
     },
     {
       "path": "freqtrade/hedge/simulation/reports.py",
-      "size": 6882,
-      "sha256": "cc6f281dc8447651f1c04740aaffc31595a91c189e6761d5659e03f701d54f09"
+      "size": 7296,
+      "sha256": "4753a47508fbcc93f125b2010811597fa9e48aaa7a5ce297ec9573793c4cf89e"
     },
     {
       "path": "freqtrade/hedge/strategies/__init__.py",
@@ -3776,8 +3781,8 @@
     },
     {
       "path": "freqtrade/optimize/hedge_backtesting.py",
-      "size": 52640,
-      "sha256": "f746722eb8b5026ef606046a5ff727a422c5423a42ec76f59684e213b562e327"
+      "size": 55363,
+      "sha256": "9a1031c302d27853801a3eb869c0b5a3dfee0b4268416451a5148006e518422a"
     },
     {
       "path": "freqtrade/optimize/hedge_parameter_optimization.py",
@@ -4055,6 +4060,11 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
+      "path": "freqtrade/plugins/pairlist/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
       "path": "freqtrade/plugins/pairlist/AgeFilter.py",
       "size": 6356,
       "sha256": "b36987e3b67e3eb5be11191501c5ecbaa7393f41e05a8ec37d51c4ea642fe3f5"
@@ -4095,6 +4105,11 @@
       "sha256": "4d580fb6b329125cc04ef6a8d49dc970b81153af7d3ca8ae9696c289c0308e86"
     },
     {
+      "path": "freqtrade/plugins/pairlist/pairlist_helpers.py",
+      "size": 2290,
+      "sha256": "60244fa8617a6d3d6a86255ec7382e67d6e0a17216636a2cf961fec771f4634c"
+    },
+    {
       "path": "freqtrade/plugins/pairlist/PercentChangePairList.py",
       "size": 13904,
       "sha256": "ed21d8253b6acfa9f5d32b42ab4f00942dee44be8037a5231c76d8fdd3c458dd"
@@ -4118,6 +4133,11 @@
       "path": "freqtrade/plugins/pairlist/ProducerPairList.py",
       "size": 3649,
       "sha256": "c01188cb5cbcdee1db73e78b32b80e40f654b281fed60c7fa5b9fa6dbbec1ace"
+    },
+    {
+      "path": "freqtrade/plugins/pairlist/rangestabilityfilter.py",
+      "size": 6953,
+      "sha256": "372c90ffdc378fde3fbc5a4560610219cf6e1bd6528f0ec25cce2a19bd263e9c"
     },
     {
       "path": "freqtrade/plugins/pairlist/RemotePairList.py",
@@ -4148,21 +4168,6 @@
       "path": "freqtrade/plugins/pairlist/VolumePairList.py",
       "size": 13408,
       "sha256": "e60c9d3cb905f8084cb6b836fcd04aca88e2b16bd43c58246e1ab393a8b17daf"
-    },
-    {
-      "path": "freqtrade/plugins/pairlist/__init__.py",
-      "size": 0,
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
-      "path": "freqtrade/plugins/pairlist/pairlist_helpers.py",
-      "size": 2290,
-      "sha256": "60244fa8617a6d3d6a86255ec7382e67d6e0a17216636a2cf961fec771f4634c"
-    },
-    {
-      "path": "freqtrade/plugins/pairlist/rangestabilityfilter.py",
-      "size": 6953,
-      "sha256": "372c90ffdc378fde3fbc5a4560610219cf6e1bd6528f0ec25cce2a19bd263e9c"
     },
     {
       "path": "freqtrade/plugins/pairlistmanager.py",
@@ -4590,16 +4595,6 @@
       "sha256": "716b53189be429e94c1fb3bede70fdd5aa17def77c3a019cc9c1e0c02929a602"
     },
     {
-      "path": "freqtrade/templates/FreqaiExampleHybridStrategy.py",
-      "size": 12807,
-      "sha256": "5fbbccd3431429ec5f86fc367b669d1cabb946e6ca79d051684923c83a1d90db"
-    },
-    {
-      "path": "freqtrade/templates/FreqaiExampleStrategy.py",
-      "size": 11534,
-      "sha256": "294f7e1e7fe912a3bf73a2cb4a2ecffe80cae6228a3d28fc5b78d3fb0731f8d5"
-    },
-    {
       "path": "freqtrade/templates/__init__.py",
       "size": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -4613,6 +4608,16 @@
       "path": "freqtrade/templates/base_strategy.py.j2",
       "size": 6250,
       "sha256": "68ea1d6c2501fe6a21997251c4ef2dad8c39ef9ca1f06d3568b6dd659633da13"
+    },
+    {
+      "path": "freqtrade/templates/FreqaiExampleHybridStrategy.py",
+      "size": 12807,
+      "sha256": "5fbbccd3431429ec5f86fc367b669d1cabb946e6ca79d051684923c83a1d90db"
+    },
+    {
+      "path": "freqtrade/templates/FreqaiExampleStrategy.py",
+      "size": 11534,
+      "sha256": "294f7e1e7fe912a3bf73a2cb4a2ecffe80cae6228a3d28fc5b78d3fb0731f8d5"
     },
     {
       "path": "freqtrade/templates/sample_hyperopt_loss.py",
@@ -4855,21 +4860,6 @@
       "sha256": "f8450bd5bd7fb5b859dfa675d024d3da4eaebb1d91bee8c03eb1774e39da4b7a"
     },
     {
-      "path": "ft_client/LICENSE",
-      "size": 10,
-      "sha256": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2"
-    },
-    {
-      "path": "ft_client/MANIFEST.in",
-      "size": 47,
-      "sha256": "f7c1eec461a993d7f2ca18298ea6d3afb47840e050e809924a8b82d070bd484f"
-    },
-    {
-      "path": "ft_client/README.md",
-      "size": 304,
-      "sha256": "13aa199c496ba339b9194e72f19b1961277beb860f3caf2ed97fb29feb976313"
-    },
-    {
       "path": "ft_client/freqtrade_client/__init__.py",
       "size": 1042,
       "sha256": "aa1cd774cac5d828b41ef1a7b5f7b824f9f8f117664248026ddba2cd23d93c7b"
@@ -4885,9 +4875,24 @@
       "sha256": "558873ddd2b1c65312ba5b3d387b02254669c1893fdb5a56f38a2ebf386199f4"
     },
     {
+      "path": "ft_client/LICENSE",
+      "size": 10,
+      "sha256": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2"
+    },
+    {
+      "path": "ft_client/MANIFEST.in",
+      "size": 47,
+      "sha256": "f7c1eec461a993d7f2ca18298ea6d3afb47840e050e809924a8b82d070bd484f"
+    },
+    {
       "path": "ft_client/pyproject.toml",
       "size": 1357,
       "sha256": "dfb039d37bbbfadeefcc0be72cc820ae12423cbd781b2b0c6de0d643407d816e"
+    },
+    {
+      "path": "ft_client/README.md",
+      "size": 304,
+      "sha256": "13aa199c496ba339b9194e72f19b1961277beb860f3caf2ed97fb29feb976313"
     },
     {
       "path": "ft_client/requirements.txt",
@@ -4905,6 +4910,16 @@
       "sha256": "fbb52fe0587a637dbbbb21ab2f2bedd1a873d9935a6bacf0c89b6363306412d6"
     },
     {
+      "path": "LICENSE",
+      "size": 35141,
+      "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2"
+    },
+    {
+      "path": "MANIFEST.in",
+      "size": 360,
+      "sha256": "f377ae528cfcc02a8aa1caae65e8712e22f67f190d9f3ee53f347c1cd83dddad"
+    },
+    {
       "path": "mkdocs.yml",
       "size": 4177,
       "sha256": "da7cdb8330d17292528f6c83d6955b6253b4ba0c243043b853185ab887d21bca"
@@ -4913,6 +4928,11 @@
       "path": "pyproject.toml",
       "size": 8575,
       "sha256": "77d81c56bafdaf9cfda60633d91bb738295f045362d793790b630f989e3eb375"
+    },
+    {
+      "path": "README.md",
+      "size": 13164,
+      "sha256": "0a83d1b15fa7cb38d62d59baeb7b1da34bacf5776cac7acbeb5cadb46653d6a7"
     },
     {
       "path": "requirements-dev.txt",
@@ -4960,9 +4980,19 @@
       "sha256": "30def859000132dc1ac7ca2df8e6a6752015ab769fcc4e423ddf1a183b108dfe"
     },
     {
+      "path": "scripts/hedge_binance_readonly_observer.py",
+      "size": 6844,
+      "sha256": "8c4f111c4ea5d845f87c5ad3cd75afd4429f3d666670b378e3d5ac08c4daaa8b"
+    },
+    {
       "path": "scripts/Install-Freqtrade-Hedge-V17-Remed800-OneShot-PS51.ps1",
       "size": 5812,
       "sha256": "65f3533f3562bc250f6f8e7ff7bd11e8ad9bbc31ad98f0b0ffa6a06793049363"
+    },
+    {
+      "path": "scripts/rest_client.py",
+      "size": 287,
+      "sha256": "9cbceca589720e6b529d0b07e33f2a6d4c31c7ecbe50ac84bbaf7160cc80eb27"
     },
     {
       "path": "scripts/Run-Freqtrade-Hedge-CleanMainline-Validation.ps1",
@@ -5003,16 +5033,6 @@
       "path": "scripts/Test-Freqtrade-Hedge-RiskLevelRL-DualRuntime.ps1",
       "size": 9681,
       "sha256": "9d546e3a279a522283433109c81d63320a8aef6b12857c83e6d491398ce9bbb6"
-    },
-    {
-      "path": "scripts/hedge_binance_readonly_observer.py",
-      "size": 6844,
-      "sha256": "8c4f111c4ea5d845f87c5ad3cd75afd4429f3d666670b378e3d5ac08c4daaa8b"
-    },
-    {
-      "path": "scripts/rest_client.py",
-      "size": 287,
-      "sha256": "9cbceca589720e6b529d0b07e33f2a6d4c31c7ecbe50ac84bbaf7160cc80eb27"
     },
     {
       "path": "scripts/ws_client.py",
@@ -5368,6 +5388,21 @@
       "path": "tests/hedge/backtesting/__init__.py",
       "size": 32,
       "sha256": "142672fb477cdc2c6e40cb9c1114e6eb230536c82d246984e1886c4c2bc7cbe2"
+    },
+    {
+      "path": "tests/hedge/backtesting/test_backtest_consistency_gate.py",
+      "size": 2690,
+      "sha256": "b03919a7d47b1ef400fb1c9f572b3bc4b05b0869df02212f57902dbd52b04c95"
+    },
+    {
+      "path": "tests/hedge/backtesting/test_compact_risk_metrics.py",
+      "size": 5086,
+      "sha256": "cd3181a15d23044533bd30ad128dca867732f01cdecf9c24db586f9d672e7d51"
+    },
+    {
+      "path": "tests/hedge/backtesting/test_compact_stream_hotpath.py",
+      "size": 4630,
+      "sha256": "62862c39cbf2a5728f48382b2ac81ce6e182bdc2607d92af04c5d9f5eafb1236"
     },
     {
       "path": "tests/hedge/backtesting/test_parity_reports.py",
@@ -5800,6 +5835,16 @@
       "sha256": "c016dd6eaf2f4ad91556609cde14d39365ab4a380afba988d3400489441364b5"
     },
     {
+      "path": "tests/hedge/mlrl/test_risk_environment_segments.py",
+      "size": 1819,
+      "sha256": "d150ef8e29c3a8880af0588b723a3ad7fd8197aa7173509add63edd12fa326e1"
+    },
+    {
+      "path": "tests/hedge/mlrl/test_risk_learning_audit.py",
+      "size": 3681,
+      "sha256": "04bfc07bed7eb6d5d1a22382bd14d95860c246d86c78f3ce7665cfdb10905ee1"
+    },
+    {
       "path": "tests/hedge/mlrl/test_risk_level_rl.py",
       "size": 16021,
       "sha256": "7da1701ef30b5bf2f9e9af522e82a5a587295b409ff98b459381bc517ab80799"
@@ -5813,6 +5858,11 @@
       "path": "tests/hedge/mlrl/test_risk_level_rl_memory.py",
       "size": 8619,
       "sha256": "f42eaf585e491fb1e25bbe9dd67b40f9665377117dc85e696ebf6fba173f8090"
+    },
+    {
+      "path": "tests/hedge/mlrl/test_risk_walkforward_audit.py",
+      "size": 6354,
+      "sha256": "b24e505a98fe224aeafc556b75f30c371a8fa412302c14f987217156dc26cc13"
     },
     {
       "path": "tests/hedge/mlrl/test_rl_adapter.py",
@@ -6770,9 +6820,64 @@
       "sha256": "d15dcdcaa8fe0fe4d9865d88850a908546c1f1a8bfe2903d6ad7a00b292b858b"
     },
     {
+      "path": "tests/testdata/backtest_results/.last_result.json",
+      "size": 43,
+      "sha256": "7185c77870394a00610d076343035428477c68eadc47a1c6a5eaf335d271f8e6"
+    },
+    {
+      "path": "tests/testdata/backtest_results/backtest-result.json",
+      "size": 132375,
+      "sha256": "2d067ed77338c9c44fe46a70c7976e20aa09cd033be0504dab7ee67e936ef34d"
+    },
+    {
+      "path": "tests/testdata/backtest_results/backtest-result.meta.json",
+      "size": 138,
+      "sha256": "4ee0840b522473f9c0f36d5410075b660118d849010e88f78200a021de1be987"
+    },
+    {
+      "path": "tests/testdata/backtest_results/backtest-result_multistrat.json",
+      "size": 235499,
+      "sha256": "ae17bf91805d93763860291c27da72596779fdf1b5348440ee04d62481fad937"
+    },
+    {
+      "path": "tests/testdata/backtest_results/backtest-result_multistrat.meta.json",
+      "size": 271,
+      "sha256": "f76b5a556fd30bd55c231fcf410fa5d6ba56433a088a7dbca8a1d3f8451410c2"
+    },
+    {
+      "path": "tests/testdata/binance/binance_public_data/futures-APEUSDT-aggTrades-2024-10-18.zip",
+      "size": 673725,
+      "sha256": "32f6d372fe74b265dcdbedf92e8d9dcdd5a88ab6396674b163af3f7adaf65a64"
+    },
+    {
+      "path": "tests/testdata/binance/binance_public_data/futures-um-klines-BTCUSDT-1h-2024-10-28.zip",
+      "size": 1533,
+      "sha256": "8310448cfc4978c89070a13d17636d3b726e8f784068ea8f7dbb5bbfc69ce581"
+    },
+    {
+      "path": "tests/testdata/binance/binance_public_data/spot-klines-BTCUSDT-1h-2024-10-28.zip",
+      "size": 1578,
+      "sha256": "744d4a991858208ead11e682457c452cd56067d113888d7323ba849ce221bc09"
+    },
+    {
+      "path": "tests/testdata/binance/binance_public_data/spot-PEPEUSDT-aggTrades-2024-10-27.zip",
+      "size": 920674,
+      "sha256": "abdd6bcd4071df239f8fce25eab256655e8bc12651244b2c4be6dc6786968261"
+    },
+    {
       "path": "tests/testdata/BTC_USDT-5m.feather",
       "size": 102362,
       "sha256": "38f89dd1e8a116e5f451e24f7022e1213ab17336da98ef9abc1c38f9bf1850cc"
+    },
+    {
+      "path": "tests/testdata/config.tests.json",
+      "size": 1933,
+      "sha256": "64cce6805e25a58bbe3d2b2f0088e0ceacf11738d1717061fde2ad767dc7830a"
+    },
+    {
+      "path": "tests/testdata/config.tests.usdt.json",
+      "size": 2052,
+      "sha256": "6cb4138a48ce023f08c547b88318bcea8186333bb7ce01e6a173a4b4868923d5"
     },
     {
       "path": "tests/testdata/DASH_BTC-5m.feather",
@@ -6790,6 +6895,51 @@
       "sha256": "f9c807156e870d73d57fa48493ebe38a1a9afc0cc379893888eb7dd07c0c5667"
     },
     {
+      "path": "tests/testdata/futures/UNITTEST_USDT_USDT-1h-mark.feather",
+      "size": 7482,
+      "sha256": "97c88209b9b36b168852801ace8ed80cc37a922cd6a289bc6b1172a477bf4e20"
+    },
+    {
+      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-funding_rate.feather",
+      "size": 4490,
+      "sha256": "bf6b64ff5c8011b298a89dbc51ce391abbb16af870e6ca01fcb00a0f70a9e5cd"
+    },
+    {
+      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-futures.feather",
+      "size": 8202,
+      "sha256": "e5ab4a2a4b2032fb8ff51659264abd66cd291d1bcb67abc3765c5d06d0a7be11"
+    },
+    {
+      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-futures.json.gz",
+      "size": 2471,
+      "sha256": "505789706accd70a434cf4bad157c480f495803f596b40c790c52e93b8cfe86d"
+    },
+    {
+      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-mark.feather",
+      "size": 7482,
+      "sha256": "6366e2c068f03fa4677077b2db7177ec446dea910ce681d426005c240369fd27"
+    },
+    {
+      "path": "tests/testdata/futures/XRP_USDT_USDT-5m-futures.feather",
+      "size": 60586,
+      "sha256": "bb0958872faf1f67c3772aab0019ddf0392309ba039c5bc9c0eac75376021d01"
+    },
+    {
+      "path": "tests/testdata/hyperopt_results_SampleStrategy.pickle",
+      "size": 7436,
+      "sha256": "40f0ea26c2626eb15efc33f70de1c60b81705114e45e7c63302e62dd35ea2fd8"
+    },
+    {
+      "path": "tests/testdata/kraken/trades_csv/BCHEUR.csv",
+      "size": 4744,
+      "sha256": "7a5ca74a65d08385cce97819026f863b319700c22df7b8af0b79bb4f7d2f7c7b"
+    },
+    {
+      "path": "tests/testdata/kraken/trades_csv/incremental_q2/BCHEUR.csv",
+      "size": 15572,
+      "sha256": "052a5faa31b749d85cef1b186b36b9cad59f9f88a04699c45d30a0393d7809be"
+    },
+    {
       "path": "tests/testdata/LTC_BTC-5m.feather",
       "size": 226466,
       "sha256": "d07236f5e97f1b19450532cc26b69fad7ca4b57dcd53f835c4c330fd73d98ff7"
@@ -6803,6 +6953,66 @@
       "path": "tests/testdata/NXT_BTC-5m.feather",
       "size": 167746,
       "sha256": "f50b567892aaa2400148e16a8eb557614338d39749d83bd6d1e5d9de4a108b43"
+    },
+    {
+      "path": "tests/testdata/orderflow/populate_dataframe_with_trades_DF.feather",
+      "size": 32034,
+      "sha256": "da44c67bc57761c3f5426dbd353d04c884be828bc7a29de3a379a25388e79f97"
+    },
+    {
+      "path": "tests/testdata/orderflow/populate_dataframe_with_trades_TRADES.feather",
+      "size": 10678378,
+      "sha256": "5003cbfe46edd6579456392e68be86a6f75b0f0322657eb25451e0c061d951ff"
+    },
+    {
+      "path": "tests/testdata/orderflow/public_trades_list.csv",
+      "size": 91257,
+      "sha256": "e7812fc8d7287dcc90e38bd55273148bba7f5efedbff5a5e60f83e93ca72d7da"
+    },
+    {
+      "path": "tests/testdata/orderflow/public_trades_list_simple_example.csv",
+      "size": 693,
+      "sha256": "572a3d4bdc75389e281a6a3dcb93030d8fd9eb889b0b345426f75975558b8e04"
+    },
+    {
+      "path": "tests/testdata/pairs.json",
+      "size": 360,
+      "sha256": "d0b08dbf5c45936c4b8eae586cae5fb7c657c00869f323cf7e9dc1b4d28b7343"
+    },
+    {
+      "path": "tests/testdata/strategy_SampleStrategy.fthypt",
+      "size": 55746,
+      "sha256": "bd8bcc9d2f5e9b80eac95f0d6f60a7922a450449496103c28ffde1e9790ea08e"
+    },
+    {
+      "path": "tests/testdata/testconfigs/main_test_config.json",
+      "size": 1949,
+      "sha256": "c31d76b0b211b59301b8a186de997edd73e4d8f50093f1b1f93b2ff0a355815c"
+    },
+    {
+      "path": "tests/testdata/testconfigs/recursive.json",
+      "size": 123,
+      "sha256": "4d33a872cf4427b960b99bc73cc0f36a870782682887dfb8de5517e0f7e616c2"
+    },
+    {
+      "path": "tests/testdata/testconfigs/test_base_config.json",
+      "size": 208,
+      "sha256": "91db9e9907bef901813ee67a7ba06b3ebfe44d108cf340c4f02c8674554b2330"
+    },
+    {
+      "path": "tests/testdata/testconfigs/test_pricing2_conf.json",
+      "size": 423,
+      "sha256": "1add20507f73931a16ef203e991107c0eb92add2a4bfcf33f1ca6957fc106577"
+    },
+    {
+      "path": "tests/testdata/testconfigs/test_pricing_conf.json",
+      "size": 491,
+      "sha256": "34c4c2a6d8877f008ce24d994268f6676d024a4c55bbdf5fe695addc696def82"
+    },
+    {
+      "path": "tests/testdata/testconfigs/testconfig.json",
+      "size": 102,
+      "sha256": "aa813af44d4f4dd504d5e17a057c91e292a006ad1aeaa04638125b3718a16d0c"
     },
     {
       "path": "tests/testdata/TRX_BTC-5m.feather",
@@ -6890,166 +7100,6 @@
       "sha256": "463d6cce5281a780c8813a2f70ba470ea8900eea45a281ac49176b4794ca2bfc"
     },
     {
-      "path": "tests/testdata/backtest_results/.last_result.json",
-      "size": 43,
-      "sha256": "7185c77870394a00610d076343035428477c68eadc47a1c6a5eaf335d271f8e6"
-    },
-    {
-      "path": "tests/testdata/backtest_results/backtest-result.json",
-      "size": 132375,
-      "sha256": "2d067ed77338c9c44fe46a70c7976e20aa09cd033be0504dab7ee67e936ef34d"
-    },
-    {
-      "path": "tests/testdata/backtest_results/backtest-result.meta.json",
-      "size": 138,
-      "sha256": "4ee0840b522473f9c0f36d5410075b660118d849010e88f78200a021de1be987"
-    },
-    {
-      "path": "tests/testdata/backtest_results/backtest-result_multistrat.json",
-      "size": 235499,
-      "sha256": "ae17bf91805d93763860291c27da72596779fdf1b5348440ee04d62481fad937"
-    },
-    {
-      "path": "tests/testdata/backtest_results/backtest-result_multistrat.meta.json",
-      "size": 271,
-      "sha256": "f76b5a556fd30bd55c231fcf410fa5d6ba56433a088a7dbca8a1d3f8451410c2"
-    },
-    {
-      "path": "tests/testdata/binance/binance_public_data/futures-APEUSDT-aggTrades-2024-10-18.zip",
-      "size": 673725,
-      "sha256": "32f6d372fe74b265dcdbedf92e8d9dcdd5a88ab6396674b163af3f7adaf65a64"
-    },
-    {
-      "path": "tests/testdata/binance/binance_public_data/futures-um-klines-BTCUSDT-1h-2024-10-28.zip",
-      "size": 1533,
-      "sha256": "8310448cfc4978c89070a13d17636d3b726e8f784068ea8f7dbb5bbfc69ce581"
-    },
-    {
-      "path": "tests/testdata/binance/binance_public_data/spot-PEPEUSDT-aggTrades-2024-10-27.zip",
-      "size": 920674,
-      "sha256": "abdd6bcd4071df239f8fce25eab256655e8bc12651244b2c4be6dc6786968261"
-    },
-    {
-      "path": "tests/testdata/binance/binance_public_data/spot-klines-BTCUSDT-1h-2024-10-28.zip",
-      "size": 1578,
-      "sha256": "744d4a991858208ead11e682457c452cd56067d113888d7323ba849ce221bc09"
-    },
-    {
-      "path": "tests/testdata/config.tests.json",
-      "size": 1933,
-      "sha256": "64cce6805e25a58bbe3d2b2f0088e0ceacf11738d1717061fde2ad767dc7830a"
-    },
-    {
-      "path": "tests/testdata/config.tests.usdt.json",
-      "size": 2052,
-      "sha256": "6cb4138a48ce023f08c547b88318bcea8186333bb7ce01e6a173a4b4868923d5"
-    },
-    {
-      "path": "tests/testdata/futures/UNITTEST_USDT_USDT-1h-mark.feather",
-      "size": 7482,
-      "sha256": "97c88209b9b36b168852801ace8ed80cc37a922cd6a289bc6b1172a477bf4e20"
-    },
-    {
-      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-funding_rate.feather",
-      "size": 4490,
-      "sha256": "bf6b64ff5c8011b298a89dbc51ce391abbb16af870e6ca01fcb00a0f70a9e5cd"
-    },
-    {
-      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-futures.feather",
-      "size": 8202,
-      "sha256": "e5ab4a2a4b2032fb8ff51659264abd66cd291d1bcb67abc3765c5d06d0a7be11"
-    },
-    {
-      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-futures.json.gz",
-      "size": 2471,
-      "sha256": "505789706accd70a434cf4bad157c480f495803f596b40c790c52e93b8cfe86d"
-    },
-    {
-      "path": "tests/testdata/futures/XRP_USDT_USDT-1h-mark.feather",
-      "size": 7482,
-      "sha256": "6366e2c068f03fa4677077b2db7177ec446dea910ce681d426005c240369fd27"
-    },
-    {
-      "path": "tests/testdata/futures/XRP_USDT_USDT-5m-futures.feather",
-      "size": 60586,
-      "sha256": "bb0958872faf1f67c3772aab0019ddf0392309ba039c5bc9c0eac75376021d01"
-    },
-    {
-      "path": "tests/testdata/hyperopt_results_SampleStrategy.pickle",
-      "size": 7436,
-      "sha256": "40f0ea26c2626eb15efc33f70de1c60b81705114e45e7c63302e62dd35ea2fd8"
-    },
-    {
-      "path": "tests/testdata/kraken/trades_csv/BCHEUR.csv",
-      "size": 4744,
-      "sha256": "7a5ca74a65d08385cce97819026f863b319700c22df7b8af0b79bb4f7d2f7c7b"
-    },
-    {
-      "path": "tests/testdata/kraken/trades_csv/incremental_q2/BCHEUR.csv",
-      "size": 15572,
-      "sha256": "052a5faa31b749d85cef1b186b36b9cad59f9f88a04699c45d30a0393d7809be"
-    },
-    {
-      "path": "tests/testdata/orderflow/populate_dataframe_with_trades_DF.feather",
-      "size": 32034,
-      "sha256": "da44c67bc57761c3f5426dbd353d04c884be828bc7a29de3a379a25388e79f97"
-    },
-    {
-      "path": "tests/testdata/orderflow/populate_dataframe_with_trades_TRADES.feather",
-      "size": 10678378,
-      "sha256": "5003cbfe46edd6579456392e68be86a6f75b0f0322657eb25451e0c061d951ff"
-    },
-    {
-      "path": "tests/testdata/orderflow/public_trades_list.csv",
-      "size": 91257,
-      "sha256": "e7812fc8d7287dcc90e38bd55273148bba7f5efedbff5a5e60f83e93ca72d7da"
-    },
-    {
-      "path": "tests/testdata/orderflow/public_trades_list_simple_example.csv",
-      "size": 693,
-      "sha256": "572a3d4bdc75389e281a6a3dcb93030d8fd9eb889b0b345426f75975558b8e04"
-    },
-    {
-      "path": "tests/testdata/pairs.json",
-      "size": 360,
-      "sha256": "d0b08dbf5c45936c4b8eae586cae5fb7c657c00869f323cf7e9dc1b4d28b7343"
-    },
-    {
-      "path": "tests/testdata/strategy_SampleStrategy.fthypt",
-      "size": 55746,
-      "sha256": "bd8bcc9d2f5e9b80eac95f0d6f60a7922a450449496103c28ffde1e9790ea08e"
-    },
-    {
-      "path": "tests/testdata/testconfigs/main_test_config.json",
-      "size": 1949,
-      "sha256": "c31d76b0b211b59301b8a186de997edd73e4d8f50093f1b1f93b2ff0a355815c"
-    },
-    {
-      "path": "tests/testdata/testconfigs/recursive.json",
-      "size": 123,
-      "sha256": "4d33a872cf4427b960b99bc73cc0f36a870782682887dfb8de5517e0f7e616c2"
-    },
-    {
-      "path": "tests/testdata/testconfigs/test_base_config.json",
-      "size": 208,
-      "sha256": "91db9e9907bef901813ee67a7ba06b3ebfe44d108cf340c4f02c8674554b2330"
-    },
-    {
-      "path": "tests/testdata/testconfigs/test_pricing2_conf.json",
-      "size": 423,
-      "sha256": "1add20507f73931a16ef203e991107c0eb92add2a4bfcf33f1ca6957fc106577"
-    },
-    {
-      "path": "tests/testdata/testconfigs/test_pricing_conf.json",
-      "size": 491,
-      "sha256": "34c4c2a6d8877f008ce24d994268f6676d024a4c55bbdf5fe695addc696def82"
-    },
-    {
-      "path": "tests/testdata/testconfigs/testconfig.json",
-      "size": 102,
-      "sha256": "aa813af44d4f4dd504d5e17a057c91e292a006ad1aeaa04638125b3718a16d0c"
-    },
-    {
       "path": "tests/util/test_ccxt_precise.py",
       "size": 2525,
       "sha256": "f49929716bc0b658230d401b65f83ee6cb067fe5dc4664612f868bd86d3ebf25"
@@ -7115,6 +7165,16 @@
       "sha256": "b84f956fc31ed0c188c285651f024cd07b386250e737191c7f57287210f3bb02"
     },
     {
+      "path": "tools/refresh_clean_mainline_manifest.py",
+      "size": 1693,
+      "sha256": "f4a96e7ad226c7624feaa9f5a9ed82ce0c9e75163a9b530a6033fb782c2baf49"
+    },
+    {
+      "path": "tools/Run-Hedge-Final-TwoYear-Acceptance-R42-PS51.ps1",
+      "size": 20522,
+      "sha256": "b2e8f15ccbfd71db9c8123dea87c7b45ed8e950b48c46e55014bc303421754b3"
+    },
+    {
       "path": "tools/run_hedge_cpu_adaptive_focused.py",
       "size": 4562,
       "sha256": "56214c6147eac9b13afc46fddc87e432ef2b11d967091cf2a553bee79dcddd2e"
@@ -7148,6 +7208,11 @@
       "path": "tools/validate_hedge_audit_remediation_800.py",
       "size": 10176,
       "sha256": "1fa275c29ac92cdd4ce622251b37213eabd8762265087031d0b871b43e347459"
+    },
+    {
+      "path": "tools/validate_hedge_backtest_consistency.py",
+      "size": 1326,
+      "sha256": "b8e3698012a936eaf4c09e24044ff5578593d8b38b2b4a1073de795003d35643"
     },
     {
       "path": "tools/validate_hedge_bounded_runtime_collections.py",

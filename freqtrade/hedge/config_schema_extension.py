@@ -97,6 +97,37 @@ HEDGE_RL_REWARD_SCHEMA: dict[str, Any] = {
 
 
 
+HEDGE_RL_LEARNING_AUDIT_SCHEMA: dict[str, Any] = {
+    "description": "Post-fit OOS and counterfactual evidence for Risk-Level RL sizing.",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "enabled": {"type": "boolean", "default": False},
+        "fail_training_on_gate": {"type": "boolean", "default": False},
+        "drawdown_weight": {"type": "number", "minimum": 0.0},
+        "min_sizing_edge": {"type": "number", "minimum": 0.0},
+        "max_active_joint_action_share": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0,
+        },
+        "min_distinct_nonzero_levels": {"type": "integer", "minimum": 1, "maximum": 4},
+        "min_active_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "min_nonzero_level_entropy": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "min_magnitude_change_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "shuffle_trials": {"type": "integer", "minimum": 1},
+        "shuffle_quantile": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "permutation_trials": {"type": "integer", "minimum": 1, "maximum": 23},
+        "permutation_quantile": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "max_permutation_exceedance": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "segment_count": {"type": "integer", "minimum": 1},
+        "min_segment_steps": {"type": "integer", "minimum": 2},
+        "min_segments": {"type": "integer", "minimum": 1},
+        "min_segment_pass_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    },
+}
+
+
 HEDGE_RL_RUNTIME_SCHEMA: dict[str, Any] = {
     "description": "Shared runtime/memory/adaptive-CPU settings for Hedge RL learners.",
     "type": "object",
@@ -140,6 +171,8 @@ HEDGE_RL_RUNTIME_SCHEMA: dict[str, Any] = {
         },
     },
 }
+
+HEDGE_RL_RUNTIME_SCHEMA["properties"]["learning_audit"] = HEDGE_RL_LEARNING_AUDIT_SCHEMA
 
 def extend_config_schema(conf_schema: dict[str, Any]) -> None:
     """Idempotently attach Hedge fields to an upstream Freqtrade schema."""

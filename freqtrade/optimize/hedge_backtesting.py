@@ -83,33 +83,36 @@ class HedgeBacktestRun:
 
 
 class _ArrayRowView:
-    """Reusable get-only row facade over pre-extracted column arrays.
+    """Reusable get-only row facade using array references plus one row index.
 
-    Compact replay used to allocate one Python dict per candle.  The signal adapter
-    only needs ``get()``, so a single facade can be rebound to each zipped row.
+    The previous compact path still allocated one tuple per bar through ``zip``.
+    This version retains the narrow arrays once and only mutates an integer row index.
     """
 
-    __slots__ = ("_index", "_values")
+    __slots__ = ("_arrays", "_index", "_row_index")
 
-    def __init__(self, names: tuple[str, ...]) -> None:
+    def __init__(self, names: tuple[str, ...], arrays: tuple[Any, ...]) -> None:
+        if len(names) != len(arrays):
+            raise ValueError("row-view names/arrays must have identical width")
         self._index = {name: index for index, name in enumerate(names)}
-        self._values: tuple[Any, ...] = ()
+        self._arrays = arrays
+        self._row_index = 0
 
-    def bind(self, values: tuple[Any, ...]) -> "_ArrayRowView":
-        self._values = values
+    def bind_index(self, row_index: int) -> _ArrayRowView:
+        self._row_index = int(row_index)
         return self
 
     def get(self, name: str, default: object = None) -> object:
         index = self._index.get(name)
         if index is None:
             return default
-        return self._values[index]
+        return self._arrays[index][self._row_index]
 
 
 def _compact_signal_bar_from_row(
     *,
     pair: str,
-    seconds: int,
+    bar_delta: timedelta,
     row: _ArrayRowView,
     columns: set[str],
     open_time: datetime,
@@ -126,7 +129,7 @@ def _compact_signal_bar_from_row(
     """
     from freqtrade.hedge.strategies.contract import directive_from_values
 
-    close_time = open_time + timedelta(seconds=seconds)
+    close_time = open_time + bar_delta
     directive = directive_from_values(row)  # type: ignore[arg-type]
     volume = (
         _decimal(row.get("volume"), field="volume")
@@ -168,6 +171,22 @@ def _compact_signal_bar_from_row(
         regime=directive.regime,
     )
     return signal_event, bar
+
+
+def _missing_candle_count_seconds(
+    previous: datetime,
+    current: datetime,
+    seconds: int,
+) -> int:
+    """Cached-timeframe equivalent of candle_cursor.missing_candle_count()."""
+    delta = (current - previous).total_seconds()
+    if delta <= 0:
+        raise ValueError("candle timestamps must move forward")
+    integer_delta = int(delta)
+    slots, remainder = divmod(integer_delta, int(seconds))
+    if remainder != 0 or delta != integer_delta:
+        raise ValueError("candle timestamps are not aligned to the configured timeframe")
+    return max(slots - 1, 0)
 
 
 class HedgeBacktestEventChunks:
@@ -292,6 +311,11 @@ class HedgeBacktestEventChunks:
         self.max_chunk_input_events = 0
         self._columns = columns
         self._seconds = seconds
+        self._bar_delta = timedelta(seconds=seconds)
+        self._row_count = len(frame)
+        self._funding_row_count = 0 if funding_missing else len(funding_frame)
+        self.row_view_mode = "INDEXED_ARRAY_VIEW_V2"
+        self.chronology_mode = "CACHED_TIMEFRAME_SECONDS_V2"
         self._consumed = False
         self._complete = False
         self._hasher = sha256(_STREAM_FINGERPRINT_VERSION)
@@ -305,8 +329,9 @@ class HedgeBacktestEventChunks:
         if self._funding_arrays is None:
             return
         previous: datetime | None = None
-        for values in self._row_values(self._funding_arrays):
-            timestamp = _aware(values[0], field="funding.date")
+        date_array, rate_array, mark_array = self._funding_arrays
+        for row_index in range(self._funding_row_count):
+            timestamp = _aware(date_array[row_index], field="funding.date")
             if previous is not None and timestamp <= previous:
                 raise OperationalException(
                     "Hedge funding dataframe must be strictly chronological and unique"
@@ -317,10 +342,10 @@ class HedgeBacktestEventChunks:
             if timestamp > self.end:
                 break
             rate = (
-                _decimal(values[1], field="funding.open_fund")
+                _decimal(rate_array[row_index], field="funding.open_fund")
                 * self.funding_rate_multiplier
             )
-            mark = _decimal(values[2], field="funding.open_mark")
+            mark = _decimal(mark_array[row_index], field="funding.open_mark")
             if mark <= 0:
                 raise OperationalException("funding.open_mark must be positive")
             yield FundingEvent(
@@ -333,29 +358,28 @@ class HedgeBacktestEventChunks:
     def _hash_event(self, event: SimulationInputEvent) -> None:
         _update_event_hash(self._hasher, event)
 
-    def _iter_events(self):  # noqa: C901
+    def _iter_events(self):
         if self._consumed:
             raise RuntimeError("HedgeBacktestEventChunks is single-use")
         self._consumed = True
 
-        from freqtrade.hedge.integration.candle_cursor import missing_candle_count
         names = self._names
         signal_columns = set(names)
-        row_view = _ArrayRowView(names)
+        row_view = _ArrayRowView(names, self._row_arrays)
         funding_iter = iter(self._funding_events() or ())
         next_funding = next(funding_iter, None)
         previous_open: datetime | None = None
 
-        for values in self._row_values(self._row_arrays):
-            row = row_view.bind(values)
+        for row_index in range(self._row_count):
+            row = row_view.bind_index(row_index)
             open_time = _aware(row.get("date"), field="date")
             if previous_open is not None:
                 if open_time <= previous_open:
                     raise OperationalException(
                         "Hedge backtest candles must be strictly chronological and unique"
                     )
-                self.missing_candle_count += missing_candle_count(
-                    previous_open, open_time, self.timeframe
+                self.missing_candle_count += _missing_candle_count_seconds(
+                    previous_open, open_time, self._seconds
                 )
                 if self.missing_candle_count > self.max_missing_candles:
                     raise OperationalException(
@@ -366,7 +390,7 @@ class HedgeBacktestEventChunks:
 
             signal_event, bar = _compact_signal_bar_from_row(
                 pair=self.pair,
-                seconds=self._seconds,
+                bar_delta=self._bar_delta,
                 row=row,
                 columns=signal_columns,
                 open_time=open_time,
@@ -657,13 +681,21 @@ class HedgeBacktesting:
         stream: HedgeBacktestEventChunks,
     ) -> SimulationResult:
         policy = DEFAULT_HEDGE_BACKTEST_MEMORY_POLICY
-        return self.engine.replay_ordered_stream(
+        result = self.engine.replay_ordered_stream(
             stream.events(),
             retain_material_events=policy.retain_material_events,
             snapshot_every_bars=policy.snapshot_every_bars(stream._seconds),
             max_retained_snapshots=policy.max_retained_snapshots,
             compact_wallet_history=policy.compact_wallet_history,
         )
+        report = dict(result.report)
+        report.update(
+            {
+                "stream_row_mode": stream.row_view_mode,
+                "chronology_mode": stream.chronology_mode,
+            }
+        )
+        return replace(result, report=report)
 
 
 def _paper_match_config(config: PaperSimulationConfig) -> MatchConfig:

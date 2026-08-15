@@ -624,7 +624,10 @@ class EventReplayEngine(SimulationPort):
             if not self.wallet.liquidated:
                 emitted.extend(self._plan(event))
             self._final_mark = event.close
-            snapshots.append(self.wallet.snapshot(event.timestamp, self._final_mark))
+            self.wallet.observe_bar_state(event.timestamp, self._final_mark)
+            snapshots.append(
+                self.wallet.snapshot(event.timestamp, self._final_mark, observe=False)
+            )
 
         return SimulationResult(
             events=tuple(emitted),
@@ -665,7 +668,8 @@ class EventReplayEngine(SimulationPort):
         input_bar_count = 0
         previous_key: tuple[datetime, int] | None = None
         current_timestamp: datetime | None = None
-        current_slots: set[tuple[str, str]] = set()
+        current_slot_mask = 0
+        flat_idle_matcher_bypass_count = 0
         sample_stride = snapshot_every_bars
 
         for event in events:
@@ -676,19 +680,24 @@ class EventReplayEngine(SimulationPort):
                 raise ValueError(
                     "ordered simulation stream moved backwards in time or priority"
                 )
+            self._assert_symbol(event.symbol)
             if current_timestamp != event.timestamp:
                 current_timestamp = event.timestamp
-                current_slots.clear()
-            slot = (self._input_slot(event)[0], event.symbol)
-            if slot in current_slots:
+                current_slot_mask = 0
+            slot_bit = 1 << priority
+            if current_slot_mask & slot_bit:
+                kind = (
+                    "SIGNAL"
+                    if priority == 0
+                    else "FUNDING" if priority == 1 else "BAR"
+                )
                 raise ValueError(
-                    f"duplicate standard event slot: {slot[0]} {event.symbol} "
+                    f"duplicate standard event slot: {kind} {event.symbol} "
                     f"at {event.timestamp.isoformat()}"
                 )
-            current_slots.add(slot)
+            current_slot_mask |= slot_bit
             previous_key = key
             self._last_event_key = key
-            self._assert_symbol(event.symbol)
 
             if isinstance(event, SignalEvent):
                 self.long_signal = event.long_signal
@@ -715,28 +724,40 @@ class EventReplayEngine(SimulationPort):
             if isinstance(event, FundingEvent):
                 self.funding.apply(self.wallet, event)
                 self._final_mark = event.mark_price
+                # Match detailed replay risk/timeline observation without adding a bar return.
+                self.wallet.observe_state(event.timestamp, self._final_mark)
                 continue
 
             input_bar_count += 1
             if not self.wallet.liquidated:
-                outcome = self.matcher.match_outcome(event, self.wallet)
-                for fill in outcome.fills:
-                    self.wallet.apply_fill(fill)
-                    if retain_material_events:
-                        retained_events.append(fill)
-                if outcome.liquidation_event is not None:
-                    self.wallet.apply_liquidation(outcome.liquidation_event)
-                    if retain_material_events:
-                        retained_events.append(outcome.liquidation_event)
-                for order_id in outcome.expired_order_ids:
-                    if self.wallet.remaining(order_id) > 0:
-                        self.wallet.cancel_order(order_id)
-                self.wallet.merge_risk_metrics(
-                    gross_peak=outcome.gross_peak,
-                    equity_peak=outcome.equity_peak,
-                    max_drawdown=outcome.max_drawdown,
+                flat_wallet = (
+                    self.wallet.long.quantity <= ZERO
+                    and self.wallet.short.quantity <= ZERO
                 )
-                self._advance_states_after_fills(event, outcome.fills)
+                skip_matcher = flat_wallet and not self.matcher._bar_may_touch_active_order(
+                    event, self.wallet
+                )
+                if skip_matcher:
+                    flat_idle_matcher_bypass_count += 1
+                else:
+                    outcome = self.matcher.match_outcome(event, self.wallet)
+                    for fill in outcome.fills:
+                        self.wallet.apply_fill(fill)
+                        if retain_material_events:
+                            retained_events.append(fill)
+                    if outcome.liquidation_event is not None:
+                        self.wallet.apply_liquidation(outcome.liquidation_event)
+                        if retain_material_events:
+                            retained_events.append(outcome.liquidation_event)
+                    for order_id in outcome.expired_order_ids:
+                        if self.wallet.remaining(order_id) > 0:
+                            self.wallet.cancel_order(order_id)
+                    self.wallet.merge_risk_metrics(
+                        gross_peak=outcome.gross_peak,
+                        equity_peak=outcome.equity_peak,
+                        max_drawdown=outcome.max_drawdown,
+                    )
+                    self._advance_states_after_fills(event, outcome.fills)
             if not self.wallet.liquidated:
                 self._plan(
                     event,
@@ -747,7 +768,7 @@ class EventReplayEngine(SimulationPort):
 
             # Update exact risk/dual-leg timeline state without allocating a
             # SimulationSnapshot for every candle.
-            self.wallet.observe_state(event.timestamp, self._final_mark)
+            self.wallet.observe_bar_state(event.timestamp, self._final_mark)
             if input_bar_count == 1 or input_bar_count % sample_stride == 0:
                 retained_snapshots.append(
                     self.wallet.snapshot(event.timestamp, self._final_mark, observe=False)
@@ -780,6 +801,9 @@ class EventReplayEngine(SimulationPort):
                 "processed_chunk_count": 0,
                 "processed_input_event_count": input_event_count,
                 "processed_bar_count": input_bar_count,
+                "slot_validation_mode": "BITMASK_SLOT_VALIDATION_V1",
+                "matcher_mode": "FLAT_IDLE_BYPASS_V1",
+                "flat_idle_matcher_bypass_count": flat_idle_matcher_bypass_count,
                 "retained_event_count": len(retained_events),
                 "retained_snapshot_count": len(retained_snapshots),
                 "snapshot_stride_bars": sample_stride,

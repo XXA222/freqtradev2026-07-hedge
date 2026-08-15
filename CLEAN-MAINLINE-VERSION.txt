@@ -1,1 +1,1 @@
-freqtrade-hedge-clean-mainline-v1.7-risklevel-rl-dual-runtime-audit-remed800-r2-20260815
+freqtrade-hedge-clean-mainline-v1.7-final-closure-risklevel-wf-2y-r4.7-20260815
